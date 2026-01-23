@@ -1,0 +1,1922 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>INFIHUILA | Planeador Comercial + Metas 2026</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      /* === Estilo INFIHUILA (similar a tu captura) === */
+      --teal:#0b6f73;
+      --teal2:#0a5b5e;
+      --teal3:#084a52;
+
+      --lime:#ccd400;
+      --olive:#5c6b3f;
+      --sand:#efe9df;
+
+      --bg:#f4f7f9;
+      --card:#ffffff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --border:#e6edf3;
+
+      --shadow: 0 18px 50px rgba(2, 6, 23, .10);
+      --shadow2: 0 10px 30px rgba(2, 6, 23, .08);
+      --r:18px;
+      --r2:26px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Helvetica Neue", sans-serif;
+      color:var(--ink);
+      background:
+        radial-gradient(1000px 520px at 10% 0%, rgba(204,212,0,.13), transparent 60%),
+        radial-gradient(1000px 520px at 90% 0%, rgba(11,111,115,.16), transparent 60%),
+        var(--bg);
+    }
+
+    .wrap{
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 18px 18px 90px;
+    }
+
+    /* ===== Header ===== */
+    .header{
+      border-radius: 34px;
+      padding: 18px 22px;
+      color:#fff;
+      background:
+        linear-gradient(135deg, rgba(11,111,115,1) 0%, rgba(10,91,94,1) 55%, rgba(13,99,60,1) 100%);
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow:hidden;
+    }
+    .header::after{
+      content:"";
+      position:absolute;
+      inset:-80px -160px auto auto;
+      width: 580px; height: 260px;
+      transform: rotate(-12deg);
+      background: radial-gradient(circle at 30% 40%, rgba(204,212,0,.50), transparent 64%);
+      opacity:.55;
+      pointer-events:none;
+    }
+
+    .header-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      position:relative;
+      z-index:1;
+      flex-wrap:wrap;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      min-width: 300px;
+    }
+
+    .logo{
+      width: 64px;
+      height: 48px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.12);
+      display:grid;
+      place-items:center;
+      border: 1px solid rgba(255,255,255,.18);
+      backdrop-filter: blur(8px);
+      flex:0 0 auto;
+    }
+    .logo-mark{
+      width: 30px; height: 30px;
+      border-radius: 10px;
+      position:relative;
+      background: rgba(255,255,255,.10);
+    }
+    .logo-mark::before{
+      content:"";
+      position:absolute;
+      left:2px; top:7px;
+      width: 12px; height: 12px;
+      border-radius: 999px;
+      background: var(--lime);
+      transform: rotate(25deg);
+      opacity:.95;
+    }
+    .logo-mark::after{
+      content:"";
+      position:absolute;
+      right:2px; bottom:6px;
+      width: 12px; height: 12px;
+      border-radius: 6px;
+      background: rgba(255,255,255,.92);
+      transform: rotate(-15deg);
+      opacity:.9;
+    }
+
+    .brand-text h1{
+      margin:0;
+      font-size: 18px;
+      letter-spacing:.2px;
+      font-weight:1000;
+      line-height:1.15;
+    }
+    .brand-text p{
+      margin: 4px 0 0 0;
+      font-size: 13px;
+      opacity:.9;
+    }
+
+    .chips{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+    }
+    .chip{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.18);
+      backdrop-filter: blur(10px);
+      white-space:nowrap;
+      font-weight:900;
+      font-size: 13px;
+    }
+    .dot{
+      width: 10px; height: 10px;
+      border-radius:999px;
+      background: var(--lime);
+      box-shadow: 0 0 0 5px rgba(204,212,0,.14);
+    }
+
+    /* ===== Tabs row ===== */
+    .tabs-row{
+      margin-top: 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .tabs{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .tab{
+      border:0;
+      cursor:pointer;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight:1000;
+      background: rgba(255,255,255,.85);
+      color: var(--teal2);
+      border: 1px solid rgba(11,111,115,.10);
+      box-shadow: var(--shadow2);
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .tab:hover{ filter:brightness(1.02); }
+    .tab.active{
+      background: #fff;
+      border-color: rgba(204,212,0,.55);
+      box-shadow: 0 18px 40px rgba(2,6,23,.10);
+    }
+    .badge{
+      font-size: 12px;
+      font-weight:1000;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(204,212,0,.18);
+      border: 1px solid rgba(204,212,0,.35);
+      color: #324000;
+    }
+
+    .top-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+    }
+    .btn{
+      border:1px solid rgba(11,111,115,.15);
+      background: rgba(255,255,255,.88);
+      color: var(--teal2);
+      font-weight:1000;
+      padding: 10px 12px;
+      border-radius: 16px;
+      cursor:pointer;
+      box-shadow: var(--shadow2);
+    }
+    .btn:hover{ background:#fff; }
+    .btn.primary{
+      border:0;
+      color:#fff;
+      background: linear-gradient(135deg, var(--teal) 0%, var(--teal2) 70%);
+      box-shadow: 0 18px 40px rgba(11,111,115,.20);
+    }
+    .btn.primary:hover{ filter:brightness(1.05); }
+
+    /* ===== Title strip ===== */
+    .title-strip{
+      margin-top: 12px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .title-strip h2{
+      margin:0;
+      font-size: 18px;
+      font-weight:1000;
+      letter-spacing:.2px;
+    }
+    .title-strip p{
+      margin:6px 0 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      max-width: 980px;
+      line-height: 1.35;
+    }
+
+    /* ===== Cards / grids ===== */
+    .grid2{
+      margin-top: 14px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .grid{
+      margin-top: 14px;
+      display:grid;
+      grid-template-columns: 1.35fr .95fr;
+      gap: 14px;
+    }
+    @media (max-width: 1100px){
+      .grid2{ grid-template-columns: 1fr; }
+      .grid{ grid-template-columns: 1fr; }
+      .chips{ justify-content:flex-start; }
+      .top-actions{ justify-content:flex-start; }
+    }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r2);
+      box-shadow: var(--shadow2);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      background: linear-gradient(180deg, rgba(11,111,115,.05), transparent);
+    }
+    .card .hd h3{
+      margin:0;
+      font-size: 14px;
+      font-weight:1000;
+      letter-spacing:.2px;
+      color: var(--teal3);
+    }
+    .card .bd{ padding: 14px 16px; }
+
+    .kpis{
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 900px){
+      .kpis{ grid-template-columns: repeat(2, 1fr); }
+    }
+    .kpi{
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 12px;
+      background: linear-gradient(135deg, rgba(11,111,115,.05), rgba(204,212,0,.05));
+    }
+    .kpi .lbl{ font-size:12px; color:var(--muted); font-weight:900; }
+    .kpi .val{ font-size:16px; font-weight:1000; margin-top:4px; }
+    .kpi .mini{ font-size:12px; color:var(--muted); margin-top:4px; }
+
+    /* Metas cards (captación/colocación) */
+    .meta{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+    }
+    .metaRow{
+      border:1px solid var(--border);
+      border-radius: 18px;
+      padding: 12px;
+      background:
+        linear-gradient(135deg, rgba(95,107,63,.10), rgba(239,233,223,.55));
+      position:relative;
+      overflow:hidden;
+    }
+    .metaRow::after{
+      content:"";
+      position:absolute;
+      inset:-30px -60px auto auto;
+      width: 200px; height: 120px;
+      transform: rotate(-10deg);
+      background: radial-gradient(circle at 35% 45%, rgba(204,212,0,.38), transparent 65%);
+      opacity:.55;
+      pointer-events:none;
+    }
+    .metaTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      position:relative;
+      z-index:1;
+    }
+    .metaTitle{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:1000;
+      color: var(--olive);
+      letter-spacing:.2px;
+    }
+    .metaIcon{
+      width:36px; height:36px;
+      border-radius: 14px;
+      display:grid;
+      place-items:center;
+      background: rgba(11,111,115,.10);
+      border:1px solid rgba(11,111,115,.12);
+      color: var(--teal3);
+      font-weight:1000;
+    }
+    .metaNums{
+      display:flex;
+      gap:14px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .metaNum{
+      min-width: 160px;
+    }
+    .metaNum b{
+      display:block;
+      font-size:12px;
+      color: var(--muted);
+      font-weight:900;
+      margin-bottom:4px;
+    }
+    .metaNum span{
+      font-weight:1000;
+      color: var(--ink);
+    }
+
+    .progress{
+      margin-top: 10px;
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(15,23,42,.08);
+      overflow:hidden;
+      position:relative;
+      z-index:1;
+    }
+    .progress > i{
+      display:block;
+      height:100%;
+      width:0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--teal), var(--lime));
+      box-shadow: 0 10px 24px rgba(11,111,115,.16);
+    }
+    .progressLabel{
+      margin-top: 8px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      font-size:12px;
+      color: var(--muted);
+      font-weight:800;
+      position:relative;
+      z-index:1;
+    }
+
+    /* Filters */
+    .filters{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom: 10px;
+    }
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 160px;
+      flex:1;
+    }
+    .field label{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:900;
+    }
+    .field input, .field select, .field textarea{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius: 16px;
+      padding: 10px 10px;
+      outline:none;
+      background:#fff;
+      font:inherit;
+      font-size:13px;
+    }
+    .field textarea{ min-height:92px; resize:vertical; }
+
+    /* Table */
+    .table-wrap{
+      overflow:auto;
+      border-radius: 18px;
+      border:1px solid var(--border);
+      background:#fff;
+    }
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      min-width: 980px;
+    }
+    thead th{
+      position:sticky; top:0;
+      background: #f8fafc;
+      font-size:12px;
+      text-align:left;
+      padding: 10px;
+      border-bottom:1px solid var(--border);
+      color: #0f172a;
+      white-space:nowrap;
+    }
+    tbody td{
+      font-size:12px;
+      padding: 10px;
+      border-bottom:1px solid #f0f4f8;
+      vertical-align:top;
+    }
+    tbody tr:hover{ background: rgba(11,111,115,.04); }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight:1000;
+      font-size: 11px;
+      border: 1px solid transparent;
+      white-space:nowrap;
+    }
+    .st-prospecto{ background: rgba(100,116,139,.14); border-color: rgba(100,116,139,.22); color:#334155; }
+    .st-gestion{ background: rgba(11,111,115,.14); border-color: rgba(11,111,115,.22); color: var(--teal2); }
+    .st-aprobado{ background: rgba(204,212,0,.22); border-color: rgba(204,212,0,.40); color:#3b3b00; }
+    .st-desembolsado{ background: rgba(34,197,94,.15); border-color: rgba(34,197,94,.28); color:#14532d; }
+    .st-caido{ background: rgba(239,68,68,.14); border-color: rgba(239,68,68,.22); color:#7f1d1d; }
+
+    .t-actions{ display:flex; gap:8px; }
+    .iconbtn{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius: 14px;
+      padding: 6px 10px;
+      cursor:pointer;
+      font-weight:1000;
+      font-size:12px;
+    }
+    .iconbtn:hover{ background: rgba(2,6,23,.03); }
+    .iconbtn.danger{ border-color: rgba(239,68,68,.25); color:#7f1d1d; }
+    .iconbtn.danger:hover{ background: rgba(239,68,68,.07); }
+
+    /* Planner */
+    .planner-top{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:end;
+      margin-bottom:10px;
+    }
+    .slots{
+      border:1px solid var(--border);
+      border-radius: 18px;
+      overflow:hidden;
+      background:#fff;
+      margin-bottom: 12px;
+    }
+    .slot{
+      display:grid;
+      grid-template-columns: 90px 1fr;
+      gap:10px;
+      padding: 10px 12px;
+      border-bottom:1px solid #f0f4f8;
+      align-items:center;
+    }
+    .slot:last-child{ border-bottom:0; }
+    .time{
+      font-weight:1000;
+      color: var(--teal3);
+      font-size: 12px;
+      white-space:nowrap;
+    }
+    .note{
+      font-size: 12px;
+      color: var(--muted);
+      line-height:1.35;
+    }
+    .note b{ color: var(--ink); }
+    .slot-actions{
+      display:flex;
+      gap:8px;
+      justify-content:flex-end;
+      align-items:center;
+      margin-top:8px;
+      flex-wrap:wrap;
+    }
+    .mini-btn{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius: 14px;
+      padding: 6px 10px;
+      cursor:pointer;
+      font-weight:1000;
+      font-size:12px;
+    }
+    .mini-btn:hover{ background: rgba(2,6,23,.03); }
+
+    /* Modal */
+    .modal-backdrop{
+      position:fixed; inset:0;
+      background: rgba(2, 6, 23, .55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      z-index:50;
+    }
+    .modal-backdrop.open{ display:flex; }
+    .modal{
+      width:min(980px, 100%);
+      border-radius: 26px;
+      overflow:hidden;
+      background:#fff;
+      border:1px solid rgba(255,255,255,.25);
+      box-shadow: 0 25px 70px rgba(2,6,23,.35);
+    }
+    .mhd{
+      padding: 14px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      background: linear-gradient(135deg, rgba(11,111,115,.14), rgba(204,212,0,.10));
+      border-bottom:1px solid var(--border);
+    }
+    .mhd h3{ margin:0; font-size: 14px; font-weight:1000; color: var(--teal3); }
+    .mbd{ padding: 14px 16px; }
+    .mft{
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+    }
+    .closex{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius: 14px;
+      padding: 6px 12px;
+      cursor:pointer;
+      font-weight:1000;
+    }
+    .closex:hover{ background: rgba(2,6,23,.03); }
+
+    /* Footer */
+    .footer{
+      position:fixed;
+      left:0; right:0; bottom:0;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      border-top:1px solid var(--border);
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align:center;
+      z-index:10;
+    }
+
+    .muted{ color: var(--muted); font-size: 12px; }
+    .nowrap{ white-space:nowrap; }
+    .right{ text-align:right; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-row">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"><div class="logo-mark"></div></div>
+          <div class="brand-text">
+            <h1>INFIHUILA · Planeador comercial + Metas 2026</h1>
+            <p>Seguimiento de gestión diaria y tablero acumulado vs metas de <b>Captación</b> y <b>Colocación</b>. Líder: <b>Alexander</b></p>
+          </div>
+        </div>
+
+        <div class="chips">
+          <div class="chip"><span class="dot"></span>Vigilada por la SFC</div>
+          <div class="chip"><span class="dot"></span>Calificación AA+</div>
+          <div class="chip"><span class="dot"></span>ISO 9001:2015</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- TABS + ACTIONS -->
+    <div class="tabs-row">
+      <div class="tabs" id="navTabs">
+        <button class="tab active" type="button" data-view="total">
+          Tablero Total <span class="badge" id="badgeTotal">0</span>
+        </button>
+        <button class="tab" type="button" data-view="comercial" data-user="Alexander">
+          Alexander <span class="badge" id="badgeAlexander">0</span>
+        </button>
+        <button class="tab" type="button" data-view="comercial" data-user="Luis Eduardo">
+          Luis Eduardo <span class="badge" id="badgeLuisEduardo">0</span>
+        </button>
+        <button class="tab" type="button" data-view="comercial" data-user="Carolina">
+          Carolina <span class="badge" id="badgeCarolina">0</span>
+        </button>
+        <button class="tab" type="button" data-view="comercial" data-user="Natalia">
+          Natalia <span class="badge" id="badgeNatalia">0</span>
+        </button>
+      </div>
+
+      <div class="top-actions">
+        <button class="btn primary" id="btnNewProspect" type="button">+ Nuevo prospecto</button>
+        <button class="btn" id="btnNewSlot" type="button">+ Nota (hora)</button>
+        <button class="btn" id="btnExportJSON" type="button">Exportar JSON</button>
+        <button class="btn" id="btnImportJSON" type="button">Importar JSON</button>
+        <input id="fileImport" type="file" accept="application/json" style="display:none" />
+      </div>
+    </div>
+
+    <!-- PAGE TITLE -->
+    <div class="title-strip">
+      <div>
+        <h2 id="pageTitle">Tablero Total (Acumulado)</h2>
+        <p id="pageSub">Consolidado del equipo comercial. El cumplimiento de metas se calcula con base en registros en estado <b>Desembolsado</b>.</p>
+      </div>
+      <div class="muted" style="margin-top:4px">
+        <b>Fecha:</b> <span id="todayLabel">—</span> · <b>Año:</b> <span id="yearLabel">—</span> ·
+        <b>Prospectos hoy:</b> <span id="todayCount">0</span> ·
+        <b>Desembolsado hoy:</b> <span id="todayDisb">0</span>
+      </div>
+    </div>
+
+    <!-- METAS 2026 -->
+    <section class="grid2">
+      <div class="card">
+        <div class="hd">
+          <h3>Metas 2026 · Colocaciones</h3>
+          <div class="muted">Fomento, Tesorería, Cesión, Libranza</div>
+        </div>
+        <div class="bd">
+          <div class="meta" id="metaColoc"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <h3>Metas 2026 · Captación</h3>
+          <div class="muted">Depósitos a la Vista y CDAT</div>
+        </div>
+        <div class="bd">
+          <div class="meta" id="metaCapta"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPIS -->
+    <section class="card" style="margin-top:14px">
+      <div class="hd">
+        <h3>Indicadores clave</h3>
+        <div class="muted">Barras: valores absolutos · Torta: porcentajes · Tendencia: acumulado mensual</div>
+      </div>
+      <div class="bd">
+        <div class="kpis" id="kpis"></div>
+      </div>
+    </section>
+
+    <!-- MAIN GRID -->
+    <section class="grid">
+      <!-- PROSPECTS -->
+      <div class="card">
+        <div class="hd">
+          <h3>Prospectos y gestión</h3>
+          <div class="muted">Incluye tipo de meta: Captación / Colocación y sub-línea</div>
+        </div>
+        <div class="bd">
+          <div class="filters">
+            <div class="field">
+              <label>Fecha (día)</label>
+              <input type="date" id="filterDate" />
+            </div>
+            <div class="field">
+              <label>Estado</label>
+              <select id="filterStatus">
+                <option value="">Todos</option>
+                <option>Prospecto</option>
+                <option>En gestión</option>
+                <option>Aprobado</option>
+                <option>Desembolsado</option>
+                <option>Caído</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Tipo meta</label>
+              <select id="filterType">
+                <option value="">Todos</option>
+                <option value="Colocación">Colocación</option>
+                <option value="Captación">Captación</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Línea / sublínea</label>
+              <input id="filterLine" placeholder="Ej: Fomento, CDAT, Libranza..." />
+            </div>
+            <div class="field">
+              <label>Búsqueda</label>
+              <input id="filterSearch" placeholder="Nombre / ID / Teléfono..." />
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="nowrap">Fecha</th>
+                  <th class="nowrap">Comercial</th>
+                  <th>Nombre</th>
+                  <th class="nowrap">ID</th>
+                  <th class="nowrap">Tipo</th>
+                  <th class="nowrap">Sublínea</th>
+                  <th class="nowrap right">Valor</th>
+                  <th class="nowrap">Estado</th>
+                  <th>Observaciones</th>
+                  <th class="nowrap">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyProspects"></tbody>
+            </table>
+          </div>
+
+          <div class="muted" style="margin-top:10px">
+            Importante: para el seguimiento contra metas, el sistema suma únicamente lo que esté en estado <b>Desembolsado</b>.
+          </div>
+        </div>
+      </div>
+
+      <!-- PLANNER + CHARTS -->
+      <div class="card">
+        <div class="hd">
+          <h3>Planeador (hora/día) + Gráficos</h3>
+          <div class="muted" id="chartContext">Contexto: equipo total</div>
+        </div>
+        <div class="bd">
+          <div class="planner-top">
+            <div class="field" style="min-width:220px; flex:1.2">
+              <label>Fecha planeada</label>
+              <input type="date" id="plannerDate" />
+            </div>
+            <div class="field" style="min-width:220px; flex:1">
+              <label>Meta mensual individual (opcional)</label>
+              <input type="number" id="monthlyGoal" min="0" step="100000" placeholder="Ej: 500000000" />
+            </div>
+          </div>
+
+          <div class="slots" id="slots"></div>
+
+          <div class="card" style="box-shadow:none;border:0;background:transparent">
+            <div class="bd" style="padding:0; display:grid; gap:12px">
+              <div class="card">
+                <div class="hd">
+                  <h3>Barras · Cumplimiento vs metas 2026</h3>
+                  <span class="muted">Colocación y Captación</span>
+                </div>
+                <div class="bd"><canvas id="barMetaChart" height="170"></canvas></div>
+              </div>
+
+              <div class="card">
+                <div class="hd">
+                  <h3>Tendencia mensual</h3>
+                  <span class="muted">Desembolsado por mes (acumulado anual)</span>
+                </div>
+                <div class="bd"><canvas id="trendChart" height="180"></canvas></div>
+              </div>
+
+              <div class="card">
+                <div class="hd">
+                  <h3>Torta · Distribución</h3>
+                  <span class="muted">Estados + participación por tipo</span>
+                </div>
+                <div class="bd"><canvas id="pieChart" height="200"></canvas></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- MODAL: Prospect -->
+  <div class="modal-backdrop" id="modalProspect" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mProspectTitle">
+      <div class="mhd">
+        <h3 id="mProspectTitle">Nuevo prospecto</h3>
+        <button class="closex" type="button" data-close="modalProspect">Cerrar ✕</button>
+      </div>
+      <div class="mbd">
+        <div class="filters" style="margin-bottom:0">
+          <div class="field" style="min-width: 220px">
+            <label>Comercial</label>
+            <select id="pUser"></select>
+          </div>
+          <div class="field">
+            <label>Fecha</label>
+            <input type="date" id="pDate" />
+          </div>
+          <div class="field">
+            <label>Nombre</label>
+            <input id="pName" placeholder="Nombre del prospecto" />
+          </div>
+          <div class="field">
+            <label>ID</label>
+            <input id="pId" placeholder="CC / NIT" />
+          </div>
+
+          <div class="field" style="min-width: 220px">
+            <label>Tipo de meta</label>
+            <select id="pType">
+              <option value="Colocación">Colocación</option>
+              <option value="Captación">Captación</option>
+            </select>
+          </div>
+
+          <div class="field" style="min-width: 240px">
+            <label>Sublínea (según metas 2026)</label>
+            <select id="pSubline"></select>
+          </div>
+
+          <div class="field">
+            <label>Valor (COP)</label>
+            <input type="number" id="pValue" min="0" step="100000" placeholder="Ej: 120000000" />
+          </div>
+
+          <div class="field">
+            <label>Estado</label>
+            <select id="pStatus">
+              <option>Prospecto</option>
+              <option>En gestión</option>
+              <option>Aprobado</option>
+              <option>Desembolsado</option>
+              <option>Caído</option>
+            </select>
+          </div>
+
+          <div class="field" style="min-width: 360px; flex: 1.6">
+            <label>Observaciones</label>
+            <textarea id="pNotes" placeholder="Detalle de gestión, próximos pasos, documentos, etc."></textarea>
+          </div>
+        </div>
+
+        <div class="muted" style="margin-top:10px">
+          Nota: Los datos se guardan en este navegador (LocalStorage). Usa Exportar JSON para respaldo o traslado.
+        </div>
+      </div>
+      <div class="mft">
+        <button class="btn" type="button" id="btnClearForm">Limpiar</button>
+        <button class="btn primary" type="button" id="btnSaveProspect">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Slot note -->
+  <div class="modal-backdrop" id="modalSlot" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mSlotTitle">
+      <div class="mhd">
+        <h3 id="mSlotTitle">Nota por hora</h3>
+        <button class="closex" type="button" data-close="modalSlot">Cerrar ✕</button>
+      </div>
+      <div class="mbd">
+        <div class="filters" style="margin-bottom:0">
+          <div class="field">
+            <label>Fecha</label>
+            <input type="date" id="sDate" />
+          </div>
+          <div class="field">
+            <label>Hora</label>
+            <select id="sHour"></select>
+          </div>
+          <div class="field">
+            <label>Comercial</label>
+            <select id="sUser"></select>
+          </div>
+          <div class="field" style="min-width: 380px; flex:1.8">
+            <label>Nota / actividad</label>
+            <textarea id="sNote" placeholder="Ej: Llamada con prospecto, visita, radicación de documentos..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="mft">
+        <button class="btn" type="button" id="btnClearSlot">Limpiar</button>
+        <button class="btn primary" type="button" id="btnSaveSlot">Guardar nota</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    © 2026 INFIHUILA - Instituto de Financiero para el Huila · Documento controlado. Cualquier impresión es copia no controlada.
+  </div>
+
+  <script>
+    /***********************
+     * 1) Config / helpers
+     ***********************/
+    const TEAM = ["Alexander", "Luis Eduardo", "Carolina", "Natalia"];
+
+    // Metas 2026 (según la imagen)
+    const GOALS_2026 = {
+      colocacion: {
+        total: 34017113417,
+        lines: {
+          "Fomento": 16778075609,
+          "Tesorería": 8389037808,
+          "Cesión de derechos": 2850000000,
+          "Libranza": 6000000000
+        }
+      },
+      captacion: {
+        total: 40000000000,
+        lines: {
+          "Depósitos a la Vista": 30000000000,
+          "Depósitos a término fijo (CDAT)": 10000000000
+        }
+      }
+    };
+
+    const STORAGE_KEY = "infihuila_planeador_comercial_metas_v1";
+    const STORAGE_GOALS_KEY = "infihuila_planeador_metas_individuales_v1";
+    const STORAGE_SLOTS_KEY = "infihuila_planeador_slots_v1";
+
+    const fmtCOP = new Intl.NumberFormat("es-CO", { style:"currency", currency:"COP", maximumFractionDigits:0 });
+
+    function uid(){ return "p_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16); }
+    function todayISO(){
+      const d = new Date();
+      const z = new Date(d.getTime() - d.getTimezoneOffset()*60000);
+      return z.toISOString().slice(0,10);
+    }
+    function clampStr(s, max=180){
+      s = (s ?? "").toString();
+      return s.length > max ? s.slice(0, max-1) + "…" : s;
+    }
+    function safeGetJSON(key, fallback){
+      try{ const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+      catch(e){ return fallback; }
+    }
+    function safeSetJSON(key, obj){ localStorage.setItem(key, JSON.stringify(obj)); }
+    function sum(arr){ return arr.reduce((a,b)=>a+b,0); }
+
+    function statusClass(status){
+      switch(status){
+        case "Prospecto": return "st-prospecto";
+        case "En gestión": return "st-gestion";
+        case "Aprobado": return "st-aprobado";
+        case "Desembolsado": return "st-desembolsado";
+        case "Caído": return "st-caido";
+        default: return "st-prospecto";
+      }
+    }
+
+    /***********************
+     * 2) App state
+     ***********************/
+    const state = {
+      view: { type: "total", user: null }, // total | comercial
+      prospects: safeGetJSON(STORAGE_KEY, []),
+      goalsInd: safeGetJSON(STORAGE_GOALS_KEY, {}), // { user: { "YYYY-MM": value } }
+      slots: safeGetJSON(STORAGE_SLOTS_KEY, {}), // { "YYYY-MM-DD": { "09:00":[{user,note,ts}] } }
+      filters: { date:"", status:"", type:"", line:"", search:"" },
+      editingProspectId: null
+    };
+
+    /***********************
+     * 3) DOM refs
+     ***********************/
+    const el = {
+      navTabs: document.getElementById("navTabs"),
+      pageTitle: document.getElementById("pageTitle"),
+      pageSub: document.getElementById("pageSub"),
+      chartContext: document.getElementById("chartContext"),
+      kpis: document.getElementById("kpis"),
+      tbody: document.getElementById("tbodyProspects"),
+
+      filterDate: document.getElementById("filterDate"),
+      filterStatus: document.getElementById("filterStatus"),
+      filterType: document.getElementById("filterType"),
+      filterLine: document.getElementById("filterLine"),
+      filterSearch: document.getElementById("filterSearch"),
+
+      plannerDate: document.getElementById("plannerDate"),
+      monthlyGoal: document.getElementById("monthlyGoal"),
+      slots: document.getElementById("slots"),
+
+      metaColoc: document.getElementById("metaColoc"),
+      metaCapta: document.getElementById("metaCapta"),
+
+      btnNewProspect: document.getElementById("btnNewProspect"),
+      btnNewSlot: document.getElementById("btnNewSlot"),
+      btnExportJSON: document.getElementById("btnExportJSON"),
+      btnImportJSON: document.getElementById("btnImportJSON"),
+      fileImport: document.getElementById("fileImport"),
+
+      todayLabel: document.getElementById("todayLabel"),
+      yearLabel: document.getElementById("yearLabel"),
+      todayCount: document.getElementById("todayCount"),
+      todayDisb: document.getElementById("todayDisb"),
+
+      modalProspect: document.getElementById("modalProspect"),
+      modalSlot: document.getElementById("modalSlot"),
+
+      // Prospect form
+      pUser: document.getElementById("pUser"),
+      pDate: document.getElementById("pDate"),
+      pName: document.getElementById("pName"),
+      pId: document.getElementById("pId"),
+      pType: document.getElementById("pType"),
+      pSubline: document.getElementById("pSubline"),
+      pValue: document.getElementById("pValue"),
+      pStatus: document.getElementById("pStatus"),
+      pNotes: document.getElementById("pNotes"),
+      btnSaveProspect: document.getElementById("btnSaveProspect"),
+      btnClearForm: document.getElementById("btnClearForm"),
+
+      // Slot form
+      sDate: document.getElementById("sDate"),
+      sHour: document.getElementById("sHour"),
+      sUser: document.getElementById("sUser"),
+      sNote: document.getElementById("sNote"),
+      btnSaveSlot: document.getElementById("btnSaveSlot"),
+      btnClearSlot: document.getElementById("btnClearSlot"),
+    };
+
+    /***********************
+     * 4) Charts
+     ***********************/
+    let barMetaChart, trendChart, pieChart;
+
+    function initCharts(){
+      barMetaChart = new Chart(document.getElementById("barMetaChart"), {
+        type: "bar",
+        data: {
+          labels: ["Colocación", "Captación"],
+          datasets: [
+            { label:"Acumulado (Desembolsado)", data:[0,0] },
+            { label:"Meta 2026", data:[GOALS_2026.colocacion.total, GOALS_2026.captacion.total] }
+          ]
+        },
+        options: {
+          responsive:true,
+          plugins:{
+            legend:{ position:"bottom" },
+            tooltip:{
+              callbacks:{
+                label:(ctx)=> `${ctx.dataset.label}: ${fmtCOP.format(ctx.parsed.y||0)}`
+              }
+            }
+          },
+          scales:{
+            y:{
+              beginAtZero:true,
+              ticks:{ callback:(v)=> fmtCOP.format(v).replace("$","$ ") }
+            }
+          }
+        }
+      });
+
+      trendChart = new Chart(document.getElementById("trendChart"), {
+        type:"line",
+        data:{
+          labels:["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"],
+          datasets:[
+            { label:"Colocación (Desembolsado)", data:Array(12).fill(0), tension:0.25 },
+            { label:"Captación (Desembolsado)", data:Array(12).fill(0), tension:0.25 }
+          ]
+        },
+        options:{
+          responsive:true,
+          plugins:{
+            legend:{ position:"bottom" },
+            tooltip:{ callbacks:{ label:(ctx)=> `${ctx.dataset.label}: ${fmtCOP.format(ctx.parsed.y||0)}` } }
+          },
+          scales:{
+            y:{ beginAtZero:true, ticks:{ callback:(v)=> fmtCOP.format(v).replace("$","$ ") } }
+          }
+        }
+      });
+
+      pieChart = new Chart(document.getElementById("pieChart"), {
+        type:"pie",
+        data:{
+          labels:["Prospecto","En gestión","Aprobado","Desembolsado","Caído","Colocación (Des.)","Captación (Des.)"],
+          datasets:[{ data:[0,0,0,0,0,0,0] }]
+        },
+        options:{
+          responsive:true,
+          plugins:{
+            legend:{ position:"bottom" },
+            tooltip:{
+              callbacks:{
+                label:(ctx)=>{
+                  const total = sum(ctx.dataset.data);
+                  const val = ctx.parsed || 0;
+                  const pct = total ? (val/total*100) : 0;
+                  return `${ctx.label}: ${val.toLocaleString("es-CO")} (${pct.toFixed(1)}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    /***********************
+     * 5) Derivations
+     ***********************/
+    function viewRows(){
+      let rows = [...state.prospects];
+
+      if(state.view.type==="comercial" && state.view.user){
+        rows = rows.filter(r => r.user === state.view.user);
+      }
+
+      const f = state.filters;
+      if(f.date) rows = rows.filter(r => r.date === f.date);
+      if(f.status) rows = rows.filter(r => r.status === f.status);
+      if(f.type) rows = rows.filter(r => (r.type||"") === f.type);
+
+      if(f.line){
+        const s = f.line.trim().toLowerCase();
+        if(s) rows = rows.filter(r => (r.subline||"").toLowerCase().includes(s));
+      }
+      if(f.search){
+        const s = f.search.trim().toLowerCase();
+        if(s){
+          rows = rows.filter(r=>{
+            const hay = [r.name,r.id,r.user,r.type,r.subline,r.notes].join(" ").toLowerCase();
+            return hay.includes(s);
+          });
+        }
+      }
+
+      rows.sort((a,b)=>{
+        const da=(a.date||""), db=(b.date||"");
+        if(da!==db) return db.localeCompare(da);
+        return (b.ts||0)-(a.ts||0);
+      });
+
+      return rows;
+    }
+
+    function monthKey(dateISO){ return dateISO ? dateISO.slice(0,7) : ""; }
+    function getIndGoal(user, dateISO){
+      const mk = monthKey(dateISO);
+      return Number(state.goalsInd?.[user]?.[mk] ?? 0);
+    }
+    function setIndGoal(user, dateISO, value){
+      const mk = monthKey(dateISO);
+      if(!state.goalsInd[user]) state.goalsInd[user] = {};
+      state.goalsInd[user][mk] = Number(value||0);
+      safeSetJSON(STORAGE_GOALS_KEY, state.goalsInd);
+    }
+
+    function calcAccumulatedDesembolsado(rows){
+      // Acumulado 2026 por tipo/sublinea (solo estado Desembolsado)
+      const coloc = { total:0, byLine:{} };
+      const capta = { total:0, byLine:{} };
+
+      Object.keys(GOALS_2026.colocacion.lines).forEach(k=> coloc.byLine[k]=0);
+      Object.keys(GOALS_2026.captacion.lines).forEach(k=> capta.byLine[k]=0);
+
+      rows
+        .filter(r=>r.status==="Desembolsado")
+        .forEach(r=>{
+          const val = Number(r.value||0);
+          if((r.type||"")==="Colocación"){
+            coloc.total += val;
+            if(coloc.byLine[r.subline] !== undefined) coloc.byLine[r.subline] += val;
+          }else if((r.type||"")==="Captación"){
+            capta.total += val;
+            if(capta.byLine[r.subline] !== undefined) capta.byLine[r.subline] += val;
+          }
+        });
+
+      return { coloc, capta };
+    }
+
+    function monthlyTrend(rows){
+      // Suma por mes (enero=0) para colocación/captación; solo Desembolsado
+      const coloc = Array(12).fill(0);
+      const capta = Array(12).fill(0);
+
+      rows.filter(r=>r.status==="Desembolsado").forEach(r=>{
+        const d = r.date;
+        if(!d) return;
+        const m = Number(d.slice(5,7)) - 1;
+        if(m<0 || m>11) return;
+        const val = Number(r.value||0);
+        if(r.type==="Colocación") coloc[m]+=val;
+        if(r.type==="Captación") capta[m]+=val;
+      });
+
+      // acumulado (tendencia)
+      for(let i=1;i<12;i++){
+        coloc[i]+=coloc[i-1];
+        capta[i]+=capta[i-1];
+      }
+      return { coloc, capta };
+    }
+
+    /***********************
+     * 6) Render
+     ***********************/
+    function rowHTML(r){
+      const pill = `<span class="pill ${statusClass(r.status)}">${r.status}</span>`;
+      return `
+        <tr data-id="${r._id}">
+          <td class="nowrap">${r.date || ""}</td>
+          <td class="nowrap"><b>${r.user || ""}</b></td>
+          <td>${clampStr(r.name, 60)}</td>
+          <td class="nowrap">${clampStr(r.id, 30)}</td>
+          <td class="nowrap"><b>${r.type || ""}</b></td>
+          <td class="nowrap">${clampStr(r.subline, 42)}</td>
+          <td class="right nowrap"><b>${fmtCOP.format(Number(r.value||0))}</b></td>
+          <td class="nowrap">${pill}</td>
+          <td>${clampStr(r.notes, 90)}</td>
+          <td class="nowrap">
+            <div class="t-actions">
+              <button class="iconbtn" type="button" data-action="edit">Editar</button>
+              <button class="iconbtn danger" type="button" data-action="delete">Eliminar</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    function renderMetasCards(rowsAllContext){
+      // metas siempre se calculan con el contexto actual (total o comercial)
+      const acc = calcAccumulatedDesembolsado(rowsAllContext);
+
+      // Colocación
+      const colocLines = Object.entries(GOALS_2026.colocacion.lines).map(([k,meta])=>{
+        const actual = acc.coloc.byLine[k] || 0;
+        const pct = meta>0 ? Math.min(100, actual/meta*100) : 0;
+        return { name:k, meta, actual, pct };
+      });
+
+      const colocTotalPct = GOALS_2026.colocacion.total>0 ? Math.min(100, acc.coloc.total/GOALS_2026.colocacion.total*100) : 0;
+
+      el.metaColoc.innerHTML = `
+        ${metaRowHTML("Total Colocaciones", "↗", acc.coloc.total, GOALS_2026.colocacion.total, colocTotalPct)}
+        ${colocLines.map(x=> metaRowHTML(x.name, "💼", x.actual, x.meta, x.pct)).join("")}
+      `;
+
+      // Captación
+      const captaLines = Object.entries(GOALS_2026.captacion.lines).map(([k,meta])=>{
+        const actual = acc.capta.byLine[k] || 0;
+        const pct = meta>0 ? Math.min(100, actual/meta*100) : 0;
+        return { name:k, meta, actual, pct };
+      });
+
+      const captaTotalPct = GOALS_2026.captacion.total>0 ? Math.min(100, acc.capta.total/GOALS_2026.captacion.total*100) : 0;
+
+      el.metaCapta.innerHTML = `
+        ${metaRowHTML("Total Captación", "🏦", acc.capta.total, GOALS_2026.captacion.total, captaTotalPct)}
+        ${captaLines.map(x=> metaRowHTML(x.name, "💰", x.actual, x.meta, x.pct)).join("")}
+      `;
+    }
+
+    function metaRowHTML(title, icon, actual, meta, pct){
+      return `
+        <div class="metaRow">
+          <div class="metaTop">
+            <div class="metaTitle">
+              <div class="metaIcon">${icon}</div>
+              ${title}
+            </div>
+            <div class="metaNums">
+              <div class="metaNum">
+                <b>Acumulado</b>
+                <span>${fmtCOP.format(actual)}</span>
+              </div>
+              <div class="metaNum">
+                <b>Meta 2026</b>
+                <span>${fmtCOP.format(meta)}</span>
+              </div>
+            </div>
+          </div>
+          <div class="progress" aria-label="progreso">
+            <i style="width:${pct.toFixed(2)}%"></i>
+          </div>
+          <div class="progressLabel">
+            <span>Cumplimiento: <b>${pct.toFixed(1)}%</b></span>
+            <span>Brecha: <b>${fmtCOP.format(Math.max(0, meta-actual))}</b></span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderKPIs(rowsContext){
+      // KPIs de contexto (según filtros) + vs metas (contexto sin filtros para metas)
+      const totalRegs = rowsContext.length;
+      const totalVal = sum(rowsContext.map(r=>Number(r.value||0)));
+      const desembVal = sum(rowsContext.filter(r=>r.status==="Desembolsado").map(r=>Number(r.value||0)));
+
+      const desembColoc = sum(rowsContext.filter(r=>r.status==="Desembolsado" && r.type==="Colocación").map(r=>Number(r.value||0)));
+      const desembCapta = sum(rowsContext.filter(r=>r.status==="Desembolsado" && r.type==="Captación").map(r=>Number(r.value||0)));
+
+      const pctColoc = GOALS_2026.colocacion.total ? (desembColoc/GOALS_2026.colocacion.total*100) : 0;
+      const pctCapta = GOALS_2026.captacion.total ? (desembCapta/GOALS_2026.captacion.total*100) : 0;
+
+      const items = [
+        { lbl:"# Registros (tabla)", val: totalRegs.toLocaleString("es-CO"), mini:"Según filtros actuales" },
+        { lbl:"Valor total (tabla)", val: fmtCOP.format(totalVal), mini:"Prospectado (según filtros)" },
+        { lbl:"Desembolsado (tabla)", val: fmtCOP.format(desembVal), mini:"Base para cumplimiento de metas" },
+        { lbl:"Cumplimiento metas (des.)", val: `${((pctColoc+pctCapta)/2).toFixed(1)}%`, mini:`Coloc: ${pctColoc.toFixed(1)}% · Capt: ${pctCapta.toFixed(1)}%` }
+      ];
+
+      el.kpis.innerHTML = items.map(x=>`
+        <div class="kpi">
+          <div class="lbl">${x.lbl}</div>
+          <div class="val">${x.val}</div>
+          <div class="mini">${x.mini}</div>
+        </div>
+      `).join("");
+    }
+
+    function buildHours(){
+      const out = [];
+      for(let h=8; h<=18; h++) out.push(String(h).padStart(2,"0")+":00");
+      return out;
+    }
+
+    function renderSlots(){
+      const d = el.plannerDate.value || todayISO();
+      const daySlots = state.slots[d] || {};
+      const hours = buildHours();
+
+      el.slots.innerHTML = hours.map(h=>{
+        const notes = (daySlots[h] || []);
+        const htmlNotes = notes.length
+          ? notes.map(n=> `<div class="note"><b>${n.user}</b>: ${clampStr(n.note, 120)}</div>`).join("")
+          : `<div class="note muted">Sin actividades registradas.</div>`;
+
+        return `
+          <div class="slot" data-hour="${h}">
+            <div class="time">${h}</div>
+            <div>
+              ${htmlNotes}
+              <div class="slot-actions">
+                <button class="mini-btn" type="button" data-slot-action="add" data-hour="${h}">+ Agregar</button>
+                <button class="mini-btn" type="button" data-slot-action="clear" data-hour="${h}">Limpiar</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // Meta mensual individual (solo en vista comercial)
+      const dateISO = el.plannerDate.value || todayISO();
+      if(state.view.type==="comercial" && state.view.user){
+        const g = getIndGoal(state.view.user, dateISO);
+        el.monthlyGoal.value = g ? String(g) : "";
+        el.monthlyGoal.disabled = false;
+      }else{
+        el.monthlyGoal.value = "";
+        el.monthlyGoal.disabled = true;
+      }
+    }
+
+    function updateBadges(){
+      const all = [...state.prospects];
+      document.getElementById("badgeTotal").textContent = all.length;
+
+      const map = {
+        "Alexander":"badgeAlexander",
+        "Luis Eduardo":"badgeLuisEduardo",
+        "Carolina":"badgeCarolina",
+        "Natalia":"badgeNatalia"
+      };
+
+      TEAM.forEach(u=>{
+        const n = all.filter(p=>p.user===u).length;
+        const id = map[u];
+        const badge = document.getElementById(id);
+        if(badge) badge.textContent = n;
+      });
+    }
+
+    function renderQuick(){
+      const t = new Date();
+      el.todayLabel.textContent = t.toLocaleDateString("es-CO", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+      el.yearLabel.textContent = String(t.getFullYear());
+
+      const td = todayISO();
+      const todayRows = state.prospects.filter(p=>p.date===td);
+      el.todayCount.textContent = todayRows.length.toLocaleString("es-CO");
+
+      const disb = sum(todayRows.filter(p=>p.status==="Desembolsado").map(p=>Number(p.value||0)));
+      el.todayDisb.textContent = fmtCOP.format(disb);
+    }
+
+    function updateCharts(rowsContext){
+      // Para metas/linea/tendencia: usar filas del contexto SIN filtros? -> usamos "rowsAllContext" aparte en render()
+      // Aquí usamos rowsContext para torta por estados y para tipo (desembolsado).
+      const counts = {
+        "Prospecto": rowsContext.filter(r=>r.status==="Prospecto").length,
+        "En gestión": rowsContext.filter(r=>r.status==="En gestión").length,
+        "Aprobado": rowsContext.filter(r=>r.status==="Aprobado").length,
+        "Desembolsado": rowsContext.filter(r=>r.status==="Desembolsado").length,
+        "Caído": rowsContext.filter(r=>r.status==="Caído").length
+      };
+      const colocDes = rowsContext.filter(r=>r.status==="Desembolsado" && r.type==="Colocación").length;
+      const captaDes = rowsContext.filter(r=>r.status==="Desembolsado" && r.type==="Captación").length;
+
+      pieChart.data.datasets[0].data = [
+        counts["Prospecto"],
+        counts["En gestión"],
+        counts["Aprobado"],
+        counts["Desembolsado"],
+        counts["Caído"],
+        colocDes,
+        captaDes
+      ];
+      pieChart.update();
+    }
+
+    function updateMetaCharts(rowsAllContext){
+      // Barras vs meta (acumulado desembolsado por tipo)
+      const acc = calcAccumulatedDesembolsado(rowsAllContext);
+
+      barMetaChart.data.datasets[0].data = [acc.coloc.total, acc.capta.total];
+      barMetaChart.data.datasets[1].data = [GOALS_2026.colocacion.total, GOALS_2026.captacion.total];
+      barMetaChart.update();
+
+      // Tendencia mensual acumulada
+      const tr = monthlyTrend(rowsAllContext);
+      trendChart.data.datasets[0].data = tr.coloc;
+      trendChart.data.datasets[1].data = tr.capta;
+      trendChart.update();
+    }
+
+    /***********************
+     * 7) Modals
+     ***********************/
+    function openModal(id){
+      const m = document.getElementById(id);
+      if(!m) return;
+      m.classList.add("open");
+      m.setAttribute("aria-hidden","false");
+    }
+    function closeModal(id){
+      const m = document.getElementById(id);
+      if(!m) return;
+      m.classList.remove("open");
+      m.setAttribute("aria-hidden","true");
+    }
+    function attachBackdropClose(backdropId){
+      const bd = document.getElementById(backdropId);
+      bd.addEventListener("mousedown", (e)=>{
+        if(e.target === bd) closeModal(backdropId);
+      });
+    }
+
+    /***********************
+     * 8) CRUD Prospect
+     ***********************/
+    function resetProspectForm(){
+      state.editingProspectId = null;
+      document.getElementById("mProspectTitle").textContent = "Nuevo prospecto";
+
+      el.pUser.value = state.view.type==="comercial" ? (state.view.user || TEAM[0]) : TEAM[0];
+      el.pDate.value = todayISO();
+      el.pName.value = "";
+      el.pId.value = "";
+      el.pType.value = "Colocación";
+      refreshSublineOptions();
+      el.pValue.value = "";
+      el.pStatus.value = "Prospecto";
+      el.pNotes.value = "";
+    }
+
+    function fillProspectForm(p){
+      state.editingProspectId = p._id;
+      document.getElementById("mProspectTitle").textContent = "Editar prospecto";
+
+      el.pUser.value = p.user || TEAM[0];
+      el.pDate.value = p.date || todayISO();
+      el.pName.value = p.name || "";
+      el.pId.value = p.id || "";
+      el.pType.value = p.type || "Colocación";
+      refreshSublineOptions();
+      el.pSubline.value = p.subline || el.pSubline.value;
+      el.pValue.value = String(Number(p.value||0));
+      el.pStatus.value = p.status || "Prospecto";
+      el.pNotes.value = p.notes || "";
+    }
+
+    function upsertProspectFromForm(){
+      const p = {
+        _id: state.editingProspectId || uid(),
+        ts: Date.now(),
+        user: el.pUser.value,
+        date: el.pDate.value || todayISO(),
+        name: el.pName.value.trim(),
+        id: el.pId.value.trim(),
+        type: el.pType.value,
+        subline: el.pSubline.value,
+        value: Number(el.pValue.value || 0),
+        status: el.pStatus.value,
+        notes: el.pNotes.value.trim()
+      };
+
+      if(!p.name){ alert("Por favor ingresa el nombre del prospecto."); el.pName.focus(); return false; }
+      if(!p.user){ alert("Selecciona un comercial."); return false; }
+      if(!p.subline){ alert("Selecciona una sublínea."); return false; }
+
+      const idx = state.prospects.findIndex(x => x._id === p._id);
+      if(idx >= 0) state.prospects[idx] = { ...state.prospects[idx], ...p };
+      else state.prospects.push(p);
+
+      safeSetJSON(STORAGE_KEY, state.prospects);
+      return true;
+    }
+
+    function deleteProspect(id){
+      const p = state.prospects.find(x=>x._id===id);
+      if(!p) return;
+      const ok = confirm(`¿Eliminar el prospecto "${p.name}" (${p.user})?`);
+      if(!ok) return;
+      state.prospects = state.prospects.filter(x=>x._id!==id);
+      safeSetJSON(STORAGE_KEY, state.prospects);
+      render();
+    }
+
+    /***********************
+     * 9) Slots CRUD
+     ***********************/
+    function resetSlotForm(hour){
+      el.sDate.value = el.plannerDate.value || todayISO();
+      el.sHour.value = hour || buildHours()[0];
+      el.sUser.value = state.view.type==="comercial" ? (state.view.user || TEAM[0]) : TEAM[0];
+      el.sNote.value = "";
+    }
+
+    function saveSlotFromForm(){
+      const d = el.sDate.value || todayISO();
+      const h = el.sHour.value;
+      const u = el.sUser.value;
+      const note = el.sNote.value.trim();
+
+      if(!note){ alert("Escribe una nota/actividad."); el.sNote.focus(); return false; }
+
+      if(!state.slots[d]) state.slots[d] = {};
+      if(!state.slots[d][h]) state.slots[d][h] = [];
+      state.slots[d][h].push({ user:u, note, ts: Date.now() });
+
+      safeSetJSON(STORAGE_SLOTS_KEY, state.slots);
+      return true;
+    }
+
+    function clearSlot(day, hour){
+      const ok = confirm(`¿Limpiar actividades de ${day} a las ${hour}?`);
+      if(!ok) return;
+      if(state.slots?.[day]?.[hour]){
+        state.slots[day][hour] = [];
+        safeSetJSON(STORAGE_SLOTS_KEY, state.slots);
+        renderSlots();
+      }
+    }
+
+    /***********************
+     * 10) Import/Export
+     ***********************/
+    function exportJSON(){
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        goals2026: GOALS_2026,
+        prospects: state.prospects,
+        goalsInd: state.goalsInd,
+        slots: state.slots
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `planeador_infihuila_metas_${todayISO()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function importJSON(file){
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try{
+          const obj = JSON.parse(reader.result);
+          if(!obj || typeof obj !== "object") throw new Error("JSON inválido");
+
+          if(Array.isArray(obj.prospects)) state.prospects = obj.prospects;
+          if(obj.goalsInd && typeof obj.goalsInd === "object") state.goalsInd = obj.goalsInd;
+          if(obj.slots && typeof obj.slots === "object") state.slots = obj.slots;
+
+          safeSetJSON(STORAGE_KEY, state.prospects);
+          safeSetJSON(STORAGE_GOALS_KEY, state.goalsInd);
+          safeSetJSON(STORAGE_SLOTS_KEY, state.slots);
+
+          alert("Importación exitosa.");
+          render();
+        }catch(e){
+          alert("No se pudo importar. Verifica que sea un JSON válido del planeador.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    /***********************
+     * 11) Subline options
+     ***********************/
+    function refreshSublineOptions(){
+      const type = el.pType.value;
+      const opts = type==="Captación"
+        ? Object.keys(GOALS_2026.captacion.lines)
+        : Object.keys(GOALS_2026.colocacion.lines);
+
+      el.pSubline.innerHTML = opts.map(o=>`<option value="${o}">${o}</option>`).join("");
+    }
+
+    /***********************
+     * 12) Events
+     ***********************/
+    function syncFiltersToUI(){
+      el.filterDate.value = state.filters.date || "";
+      el.filterStatus.value = state.filters.status || "";
+      el.filterType.value = state.filters.type || "";
+      el.filterLine.value = state.filters.line || "";
+      el.filterSearch.value = state.filters.search || "";
+    }
+
+    function bindEvents(){
+      // Tabs navigation
+      el.navTabs.addEventListener("click", (e)=>{
+        const btn = e.target.closest("button.tab");
+        if(!btn) return;
+
+        const view = btn.dataset.view;
+        if(view==="total") state.view = { type:"total", user:null };
+        else state.view = { type:"comercial", user: btn.dataset.user || TEAM[0] };
+
+        state.filters = { date:"", status:"", type:"", line:"", search:"" };
+        syncFiltersToUI();
+        render();
+      });
+
+      // Filters
+      el.filterDate.addEventListener("input", ()=>{ state.filters.date = el.filterDate.value; render(); });
+      el.filterStatus.addEventListener("change", ()=>{ state.filters.status = el.filterStatus.value; render(); });
+      el.filterType.addEventListener("change", ()=>{ state.filters.type = el.filterType.value; render(); });
+      el.filterLine.addEventListener("input", ()=>{ state.filters.line = el.filterLine.value; render(); });
+      el.filterSearch.addEventListener("input", ()=>{ state.filters.search = el.filterSearch.value; render(); });
+
+      // Planner
+      el.plannerDate.addEventListener("change", ()=> render());
+
+      el.monthlyGoal.addEventListener("change", ()=>{
+        const d = el.plannerDate.value || todayISO();
+        if(state.view.type==="comercial" && state.view.user){
+          setIndGoal(state.view.user, d, el.monthlyGoal.value);
+          render();
+        }
+      });
+
+      // Prospect type change -> sublines update
+      el.pType.addEventListener("change", refreshSublineOptions);
+
+      // Top actions
+      el.btnNewProspect.addEventListener("click", ()=>{
+        resetProspectForm();
+        el.pDate.value = el.plannerDate.value || todayISO();
+        openModal("modalProspect");
+      });
+
+      el.btnNewSlot.addEventListener("click", ()=>{
+        resetSlotForm();
+        openModal("modalSlot");
+      });
+
+      el.btnExportJSON.addEventListener("click", exportJSON);
+      el.btnImportJSON.addEventListener("click", ()=> el.fileImport.click());
+      el.fileImport.addEventListener("change", ()=>{
+        const f = el.fileImport.files?.[0];
+        if(f) importJSON(f);
+        el.fileImport.value = "";
+      });
+
+      // Prospect modal
+      el.btnClearForm.addEventListener("click", resetProspectForm);
+      el.btnSaveProspect.addEventListener("click", ()=>{
+        const ok = upsertProspectFromForm();
+        if(ok){
+          closeModal("modalProspect");
+          render();
+        }
+      });
+
+      // Slot modal
+      el.btnClearSlot.addEventListener("click", ()=> resetSlotForm(el.sHour.value));
+      el.btnSaveSlot.addEventListener("click", ()=>{
+        const ok = saveSlotFromForm();
+        if(ok){
+          closeModal("modalSlot");
+          renderSlots();
+        }
+      });
+
+      // Table actions
+      el.tbody.addEventListener("click", (e)=>{
+        const btn = e.target.closest("button[data-action]");
+        if(!btn) return;
+        const tr = e.target.closest("tr[data-id]");
+        if(!tr) return;
+        const id = tr.dataset.id;
+
+        if(btn.dataset.action==="delete") deleteProspect(id);
+        if(btn.dataset.action==="edit"){
+          const p = state.prospects.find(x=>x._id===id);
+          if(!p) return;
+          fillProspectForm(p);
+          openModal("modalProspect");
+        }
+      });
+
+      // Slot actions
+      el.slots.addEventListener("click", (e)=>{
+        const b = e.target.closest("button[data-slot-action]");
+        if(!b) return;
+        const action = b.dataset.slotAction;
+        const hour = b.dataset.hour;
+        const day = el.plannerDate.value || todayISO();
+
+        if(action==="add"){
+          resetSlotForm(hour);
+          el.sDate.value = day;
+          openModal("modalSlot");
+        }
+        if(action==="clear"){
+          clearSlot(day, hour);
+        }
+      });
+
+      // Close modals
+      document.addEventListener("click", (e)=>{
+        const c = e.target.closest("[data-close]");
+        if(!c) return;
+        closeModal(c.getAttribute("data-close"));
+      });
+
+      document.addEventListener("keydown", (e)=>{
+        if(e.key!=="Escape") return;
+        if(el.modalProspect.classList.contains("open")) closeModal("modalProspect");
+        if(el.modalSlot.classList.contains("open")) closeModal("modalSlot");
+      });
+
+      attachBackdropClose("modalProspect");
+      attachBackdropClose("modalSlot");
+    }
+
+    /***********************
+     * 13) Init
+     ***********************/
+    function populateSelects(){
+      el.pUser.innerHTML = TEAM.map(u=>`<option value="${u}">${u}</option>`).join("");
+      el.sUser.innerHTML = TEAM.map(u=>`<option value="${u}">${u}</option>`).join("");
+      el.sHour.innerHTML = buildHours().map(h=>`<option value="${h}">${h}</option>`).join("");
+      refreshSublineOptions();
+    }
+
+    function render(){
+      if(state.view.type==="total"){
+        el.pageTitle.textContent = "Tablero Total (Acumulado)";
+        el.pageSub.innerHTML = 'Consolidado del equipo comercial. El cumplimiento de metas se calcula con base en registros en estado <b>Desembolsado</b>.';
+        el.chartContext.textContent = "Contexto: equipo total";
+      }else{
+        el.pageTitle.textContent = `Planeador de ${state.view.user}`;
+        el.pageSub.innerHTML = 'Gestión individual. El cumplimiento de metas se calcula con base en registros en estado <b>Desembolsado</b>.';
+        el.chartContext.textContent = `Contexto: ${state.view.user}`;
+      }
+
+      // Active tab
+      [...el.navTabs.querySelectorAll(".tab")].forEach(b=>{
+        const isTotal = b.dataset.view==="total" && state.view.type==="total";
+        const isUser  = b.dataset.view==="comercial" && state.view.type==="comercial" && b.dataset.user===state.view.user;
+        b.classList.toggle("active", isTotal || isUser);
+      });
+
+      updateBadges();
+
+      // rows in context + rowsAllContext for metas/charts (context without filters)
+      let rowsAllContext = [...state.prospects];
+      if(state.view.type==="comercial" && state.view.user){
+        rowsAllContext = rowsAllContext.filter(r => r.user === state.view.user);
+      }
+
+      const rowsContext = viewRows();
+
+      el.tbody.innerHTML = rowsContext.map(rowHTML).join("");
+
+      // metas cards based on context (no filters)
+      renderMetasCards(rowsAllContext);
+
+      // KPIs and slots
+      renderKPIs(rowsContext);
+      renderSlots();
+      renderQuick();
+
+      // charts
+      updateMetaCharts(rowsAllContext);
+      updateCharts(rowsContext);
+
+      // monthlyGoal (ind)
+      const dateISO = el.plannerDate.value || todayISO();
+      if(state.view.type==="comercial" && state.view.user){
+        const g = getIndGoal(state.view.user, dateISO);
+        el.monthlyGoal.value = g ? String(g) : "";
+        el.monthlyGoal.disabled = false;
+      }else{
+        el.monthlyGoal.value = "";
+        el.monthlyGoal.disabled = true;
+      }
+    }
+
+    function boot(){
+      populateSelects();
+      initCharts();
+
+      const tISO = todayISO();
+      el.plannerDate.value = tISO;
+      el.pDate.value = tISO;
+
+      resetProspectForm();
+      resetSlotForm();
+
+      bindEvents();
+      render();
+    }
+
+    document.addEventListener("DOMContentLoaded", boot);
+  </script>
+</body>
+</html>
