@@ -639,6 +639,81 @@
       font-weight:1000;
     }
     .closex:hover{ background: rgba(2,6,23,.03); }
+    /* ===== Botón flotante (Manual) ===== */
+    .fab{
+      position: fixed;
+      right: 18px;
+      bottom: 78px; /* sobre el footer */
+      width: 56px;
+      height: 56px;
+      border-radius: 999px;
+      border: 0;
+      cursor: pointer;
+      z-index: 60;
+      display: grid;
+      place-items: center;
+      font-weight: 1000;
+      font-size: 18px;
+      color: #0f172a;
+      background: linear-gradient(135deg, rgba(204,212,0,1) 0%, rgba(255,255,255,.95) 70%);
+      box-shadow: 0 18px 45px rgba(2,6,23,.18);
+    }
+    .fab:hover{ filter: brightness(1.03); transform: translateY(-1px); }
+    .fab:active{ transform: translateY(0px) scale(.99); }
+    .fab small{
+      position:absolute;
+      right: 66px;
+      bottom: 14px;
+      background: rgba(255,255,255,.96);
+      border: 1px solid var(--border);
+      color: var(--teal3);
+      font-size: 12px;
+      font-weight: 1000;
+      padding: 8px 10px;
+      border-radius: 999px;
+      box-shadow: var(--shadow2);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(6px);
+      transition: .18s ease;
+      white-space: nowrap;
+    }
+    .fab:hover small{ opacity: 1; transform: translateX(0); }
+
+    /* Manual content */
+    .manual h4{
+      margin: 0 0 8px 0;
+      font-size: 13px;
+      font-weight: 1000;
+      color: var(--teal3);
+      letter-spacing: .2px;
+    }
+    .manual p, .manual li{
+      font-size: 12.5px;
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    .manual ul{ margin: 8px 0 14px 18px; }
+    .manual .callout{
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(11,111,115,.06), rgba(204,212,0,.06));
+      border-radius: 18px;
+      padding: 12px;
+      margin: 10px 0 14px 0;
+    }
+    .kbd{
+      display:inline-block;
+      padding: 1px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-weight: 1000;
+      font-size: 12px;
+      color: var(--teal3);
+      vertical-align: baseline;
+    }
+
+
 
     /* Footer */
     .footer{
@@ -984,6 +1059,78 @@
     </div>
   </div>
 
+
+  <!-- Botón flotante: Manual -->
+  <button class="fab" id="btnManual" type="button" aria-label="Abrir manual de usuario" title="Manual de usuario">
+    ?
+    <small>Manual de usuario</small>
+  </button>
+
+  <!-- MODAL: Manual de usuario -->
+  <div class="modal-backdrop" id="modalManual" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mManualTitle">
+      <div class="mhd">
+        <h3 id="mManualTitle">Manual de usuario · Planeador Comercial INFIHUILA</h3>
+        <button class="closex" type="button" data-close="modalManual">Cerrar ✕</button>
+      </div>
+      <div class="mbd manual">
+        <div class="callout">
+          <b>Objetivo:</b> registrar y dar seguimiento real a prospectos y actividades del equipo comercial. 
+          Toda la información se guarda automáticamente en este navegador.
+        </div>
+
+        <h4>1) Navegación</h4>
+        <ul>
+          <li><b>Tablero Total</b>: consolida resultados de todo el equipo.</li>
+          <li><b>Planeador por comercial</b>: selecciona un nombre (Alexander, Luis Eduardo, Carolina, Natalia) para ver su gestión.</li>
+        </ul>
+
+        <h4>2) Prospectos</h4>
+        <ul>
+          <li>Haz clic en <b>+ Nuevo prospecto</b> para registrar una oportunidad.</li>
+          <li>Campos clave: <b>Tipo</b> (Colocación/Captación), <b>Sublínea</b>, <b>Valor</b>, <b>Estado</b> y <b>Observaciones</b>.</li>
+          <li>En la tabla puedes <b>Editar</b> o <b>Eliminar</b> un registro.</li>
+          <li>El cumplimiento de metas se calcula con base en registros en estado <b>Desembolsado</b>.</li>
+        </ul>
+
+        <h4>3) Filtros y búsqueda</h4>
+        <ul>
+          <li>Filtra por fecha, estado, tipo, línea y texto libre para ubicar registros rápidamente.</li>
+          <li>Los KPI y gráficas se actualizan automáticamente según el contexto seleccionado.</li>
+        </ul>
+
+        <h4>4) Agenda por horas</h4>
+        <ul>
+          <li>Usa <b>+ Nota (hora)</b> o el botón <b>Agregar</b> en cada franja para registrar actividades (llamadas, visitas, radicación, etc.).</li>
+          <li>Puedes registrar múltiples notas por hora y por comercial.</li>
+        </ul>
+
+        <h4>5) Exportación</h4>
+        <ul>
+          <li><b>Exportar PDF</b>: genera un PDF del tablero completo (incluye metas, KPI, tablas y agenda visible).</li>
+          <li><b>Exportar Excel</b>: genera un archivo con hojas para <b>Prospectos</b> y <b>Agenda</b>.</li>
+        </ul>
+
+        <h4>6) Guardado automático (seguimiento real)</h4>
+        <ul>
+          <li>Los datos se guardan en <b>LocalStorage</b> del navegador (no requiere servidor y funciona en GitHub Pages).</li>
+          <li>Si cambias de equipo o navegador, no verás los datos anteriores (porque se guardan localmente).</li>
+          <li>Recomendación: realiza exportaciones periódicas a Excel como respaldo operativo.</li>
+        </ul>
+
+        <div class="callout">
+          <b>Atajos:</b> Presiona <span class="kbd">Esc</span> para cerrar cualquier ventana (modal).
+        </div>
+      </div>
+      <div class="mft">
+        <button class="btn" type="button" data-close="modalManual">Cerrar</button>
+        <button class="btn primary" type="button" onclick="exportPDF()">Exportar PDF</button>
+        <button class="btn primary" type="button" onclick="exportExcel()">Exportar Excel</button>
+      </div>
+    </div>
+  </div>
+
+
   <div class="footer">
     © 2026 INFIHUILA - Instituto de Financiero para el Huila · Documento controlado. Cualquier impresión es copia no controlada.
   </div>
@@ -1088,6 +1235,10 @@
       btnNewSlot: document.getElementById("btnNewSlot"),
       btnExportPDF: document.getElementById("btnExportPDF"),
       btnExportExcel: document.getElementById("btnExportExcel"),
+
+      btnManual: document.getElementById("btnManual"),
+
+      modalManual: document.getElementById("modalManual"),
 
       todayLabel: document.getElementById("todayLabel"),
       yearLabel: document.getElementById("yearLabel"),
@@ -1813,6 +1964,11 @@
     }
 
     function bindEvents(){
+
+      // Manual (botón flotante)
+      if(el.btnManual){
+        el.btnManual.addEventListener("click", ()=> openModal("modalManual"));
+      }
       // Tabs navigation
       el.navTabs.addEventListener("click", (e)=>{
         const btn = e.target.closest("button.tab");
@@ -1929,10 +2085,12 @@
         if(e.key!=="Escape") return;
         if(el.modalProspect.classList.contains("open")) closeModal("modalProspect");
         if(el.modalSlot.classList.contains("open")) closeModal("modalSlot");
+        if(el.modalManual && el.modalManual.classList.contains("open")) closeModal("modalManual");
       });
 
       attachBackdropClose("modalProspect");
       attachBackdropClose("modalSlot");
+      attachBackdropClose("modalManual");
     }
 
     /***********************
