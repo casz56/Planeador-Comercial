@@ -2180,6 +2180,7 @@
     window.__PLANEADOR__.STORAGE_KEY = STORAGE_KEY;
     window.__PLANEADOR__.STORAGE_GOALS_KEY = STORAGE_GOALS_KEY;
     window.__PLANEADOR__.STORAGE_SLOTS_KEY = STORAGE_SLOTS_KEY;
+    window.__PLANEADOR__.GOALS_2026 = GOALS_2026;
 
     document.addEventListener("DOMContentLoaded", boot);
   </script>
@@ -2333,6 +2334,46 @@
         ...payload,
         updatedAt: serverTimestamp()
       }, { merge: true });
+
+    // ============================
+    //  Metas 2026: Firestore
+    //  Guardamos metas institucionales en:
+    //  Usuarios/{uid}/Metas/2026
+    //  (para auditoría / trazabilidad / producción)
+    // ============================
+    function goalsDocRef(uid, year="2026") {
+      return doc(db, "Usuarios", uid, "Metas", String(year));
+    }
+
+    async function ensureGoals2026(uid, year="2026") {
+      const ref = goalsDocRef(uid, year);
+      const snap = await getDoc(ref);
+
+      // Si no existe o está vacío, escribimos las metas base (merge)
+      const isEmpty = !snap.exists() || !snap.data() || Object.keys(snap.data()).length === 0;
+      if (isEmpty) {
+        const base = window.__PLANEADOR__?.GOALS_2026 || null;
+        if (!base) return;
+        await setDoc(ref, {
+          ...base,
+          year: Number(year),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+    }
+
+    async function loadGoals2026(uid, year="2026") {
+      const ref = goalsDocRef(uid, year);
+      const snap = await getDoc(ref);
+      return snap.exists() ? snap.data() : null;
+    }
+
+    // (Opcional) Forzar actualización de updatedAt cuando el tablero se usa
+    async function touchGoals2026(uid, year="2026") {
+      const ref = goalsDocRef(uid, year);
+      await setDoc(ref, { updatedAt: serverTimestamp() }, { merge: true });
+    }
     }
 
     // Debounce para no escribir en cada click
@@ -2382,16 +2423,20 @@
         updatedAt: serverTimestamp()
       }, { merge: true });
 
+      // Asegurar que las Metas 2026 queden persistidas en Firestore (producción)
+      try { await ensureGoals2026(user.uid, "2026"); } catch (e) { console.warn("No se pudo asegurar Metas 2026:", e); }
+
       const data = await loadState(user.uid);
-      if (!data) return;
 
       const p = window.__PLANEADOR__;
       if (!p?.state || !p?.render) return;
 
-      if (Array.isArray(data.prospects)) p.state.prospects = data.prospects;
-      if (data.goalsInd && typeof data.goalsInd === "object") p.state.goalsInd = data.goalsInd;
-      if (data.slots && typeof data.slots === "object") p.state.slots = data.slots;
-      if (data.view && typeof data.view === "object") p.state.view = data.view;
+      if (data) {
+        if (Array.isArray(data.prospects)) p.state.prospects = data.prospects;
+        if (data.goalsInd && typeof data.goalsInd === "object") p.state.goalsInd = data.goalsInd;
+        if (data.slots && typeof data.slots === "object") p.state.slots = data.slots;
+        if (data.view && typeof data.view === "object") p.state.view = data.view;
+      }
 
       try { p.render(); } catch (e) { console.warn("Render falló:", e); }
     });
