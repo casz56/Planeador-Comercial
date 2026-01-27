@@ -2180,16 +2180,21 @@
     window.__PLANEADOR__.STORAGE_KEY = STORAGE_KEY;
     window.__PLANEADOR__.STORAGE_GOALS_KEY = STORAGE_GOALS_KEY;
     window.__PLANEADOR__.STORAGE_SLOTS_KEY = STORAGE_SLOTS_KEY;
-    window.__PLANEADOR__.GOALS_2026 = GOALS_2026;
 
     document.addEventListener("DOMContentLoaded", boot);
   </script>
 
-  <!-- Firebase (Auth + Firestore + App Check) -->
+  
+  <!-- Polyfill para evitar "process is not defined" (GitHub Pages / Browser) -->
   <script>
-    // Polyfill mínimo para librerías que esperan process.env (Node) en navegador (GitHub Pages)
-    window.process = window.process || { env: {} };
+    (function(){
+      if (typeof window.process === "undefined") window.process = { env: {} };
+      if (typeof globalThis.process === "undefined") globalThis.process = window.process;
+      if (typeof window.global === "undefined") window.global = window;
+    })();
   </script>
+
+  <!-- Firebase (Auth + Firestore + App Check) -->
   <script type="module">
     // ============================
     //  Firebase para Producción
@@ -2242,7 +2247,47 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // ✅ App Check (reCAPTCHA v3) — SITE KEY (pública)
+    
+    // ============================
+    //  Metas institucionales 2026 (Firestore)
+    //  Ruta: Usuarios/{uid}/Metas/2026
+    // ============================
+    async function ensureGoals2026(uid) {
+      if (!uid) return;
+      const ref = doc(db, "Usuarios", uid, "Metas", "2026");
+      const snap = await getDoc(ref);
+      const data = snap.exists() ? (snap.data() || {}) : null;
+
+      // Si no existe o está vacío, lo creamos
+      if (!snap.exists() || !data || Object.keys(data).length === 0) {
+        const GOALS_2026 = {
+          year: 2026,
+          colocacion: {
+            total: 34017113417,
+            lines: {
+              fomento: 16778075609,
+              tesoreria: 8389037808,
+              cesion: 2850000000,
+              libranza: 6000000000
+            }
+          },
+          captacion: {
+            total: 40000000000,
+            lines: {
+              vista: 30000000000,
+              cdat: 10000000000
+            }
+          },
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+
+        await setDoc(ref, GOALS_2026, { merge: true });
+        console.info("✅ Metas 2026 creadas/aseguradas en Firestore.");
+      }
+    }
+
+// ✅ App Check (reCAPTCHA v3) — SITE KEY (pública)
     initializeAppCheck(app, {
       provider: new ReCaptchaV3Provider("6LejZlcsAAAAAKlq9QamwfvDw1T1llnkdeQVLgoO"),
       isTokenAutoRefreshEnabled: true
@@ -2334,46 +2379,6 @@
         ...payload,
         updatedAt: serverTimestamp()
       }, { merge: true });
-
-    // ============================
-    //  Metas 2026: Firestore
-    //  Guardamos metas institucionales en:
-    //  Usuarios/{uid}/Metas/2026
-    //  (para auditoría / trazabilidad / producción)
-    // ============================
-    function goalsDocRef(uid, year="2026") {
-      return doc(db, "Usuarios", uid, "Metas", String(year));
-    }
-
-    async function ensureGoals2026(uid, year="2026") {
-      const ref = goalsDocRef(uid, year);
-      const snap = await getDoc(ref);
-
-      // Si no existe o está vacío, escribimos las metas base (merge)
-      const isEmpty = !snap.exists() || !snap.data() || Object.keys(snap.data()).length === 0;
-      if (isEmpty) {
-        const base = window.__PLANEADOR__?.GOALS_2026 || null;
-        if (!base) return;
-        await setDoc(ref, {
-          ...base,
-          year: Number(year),
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-      }
-    }
-
-    async function loadGoals2026(uid, year="2026") {
-      const ref = goalsDocRef(uid, year);
-      const snap = await getDoc(ref);
-      return snap.exists() ? snap.data() : null;
-    }
-
-    // (Opcional) Forzar actualización de updatedAt cuando el tablero se usa
-    async function touchGoals2026(uid, year="2026") {
-      const ref = goalsDocRef(uid, year);
-      await setDoc(ref, { updatedAt: serverTimestamp() }, { merge: true });
-    }
     }
 
     // Debounce para no escribir en cada click
@@ -2423,20 +2428,20 @@
         updatedAt: serverTimestamp()
       }, { merge: true });
 
-      // Asegurar que las Metas 2026 queden persistidas en Firestore (producción)
-      try { await ensureGoals2026(user.uid, "2026"); } catch (e) { console.warn("No se pudo asegurar Metas 2026:", e); }
+      // Asegura Metas 2026 en Firestore (si no existen o están vacías)
+      try { await ensureGoals2026(user.uid); } catch (e) { console.warn("No se pudo asegurar Metas 2026:", e); }
+
 
       const data = await loadState(user.uid);
+      if (!data) return;
 
       const p = window.__PLANEADOR__;
       if (!p?.state || !p?.render) return;
 
-      if (data) {
-        if (Array.isArray(data.prospects)) p.state.prospects = data.prospects;
-        if (data.goalsInd && typeof data.goalsInd === "object") p.state.goalsInd = data.goalsInd;
-        if (data.slots && typeof data.slots === "object") p.state.slots = data.slots;
-        if (data.view && typeof data.view === "object") p.state.view = data.view;
-      }
+      if (Array.isArray(data.prospects)) p.state.prospects = data.prospects;
+      if (data.goalsInd && typeof data.goalsInd === "object") p.state.goalsInd = data.goalsInd;
+      if (data.slots && typeof data.slots === "object") p.state.slots = data.slots;
+      if (data.view && typeof data.view === "object") p.state.view = data.view;
 
       try { p.render(); } catch (e) { console.warn("Render falló:", e); }
     });
