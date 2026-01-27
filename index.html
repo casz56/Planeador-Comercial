@@ -2185,6 +2185,10 @@
   </script>
 
   <!-- Firebase (Auth + Firestore + App Check) -->
+  <script>
+    // Polyfill mínimo para librerías que esperan process.env (Node) en navegador (GitHub Pages)
+    window.process = window.process || { env: {} };
+  </script>
   <script type="module">
     // ============================
     //  Firebase para Producción
