@@ -2172,7 +2172,226 @@
       render();
     }
 
+    
+    // --- Exponer referencias para el módulo Firebase (no rompe el diseño) ---
+    window.__PLANEADOR__ = window.__PLANEADOR__ || {};
+    window.__PLANEADOR__.state = state;          // estado (prospects, goalsInd, slots, view)
+    window.__PLANEADOR__.render = render;        // rerender completo
+    window.__PLANEADOR__.STORAGE_KEY = STORAGE_KEY;
+    window.__PLANEADOR__.STORAGE_GOALS_KEY = STORAGE_GOALS_KEY;
+    window.__PLANEADOR__.STORAGE_SLOTS_KEY = STORAGE_SLOTS_KEY;
+
     document.addEventListener("DOMContentLoaded", boot);
   </script>
+
+  <!-- Firebase (Auth + Firestore + App Check) -->
+  <script type="module">
+    // ============================
+    //  Firebase para Producción
+    //  1) Pega aquí tu firebaseConfig (Project settings > Your apps > Web app)
+    //  2) App Check: reCAPTCHA v3 (Site Key ya incluido)
+    // ============================
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getAnalytics, isSupported as analyticsIsSupported } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-analytics.js";
+    import {
+      getAuth,
+      onAuthStateChanged,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      getDoc,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+    import {
+      initializeAppCheck,
+      ReCaptchaV3Provider
+    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app-check.js";
+
+    // 🔁 REEMPLAZA estos valores con los de tu Firebase Console
+    const firebaseConfig = {
+      apiKey: "AIzaSyAPdpU73xMCD1ncg8DeNohVz4on3Uuu4EA",
+      authDomain: "planeador-6ca40.firebaseapp.com",
+      projectId: "planeador-6ca40",
+      storageBucket: "planeador-6ca40.firebasestorage.app",
+      messagingSenderId: "710007406557",
+      appId: "1:710007406557:web:94951bd07376dd3d2e4034",
+      measurementId: "G-43NGTHB2B6"
+    };
+
+    // ✅ Inicialización
+    const app = initializeApp(firebaseConfig);
+    // Analytics (solo si el entorno lo soporta: https, no bloqueado, etc.)
+    try {
+      analyticsIsSupported().then((ok) => {
+        if (ok) getAnalytics(app);
+      }).catch(() => {});
+    } catch (_) {}
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // ✅ App Check (reCAPTCHA v3) — SITE KEY (pública)
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider("6LejZlcsAAAAAKlq9QamwfvDw1T1llnkdeQVLgoO"),
+      isTokenAutoRefreshEnabled: true
+    });
+
+    // ============================
+    //  UI mínima de Auth (modal)
+    // ============================
+    function ensureAuthUI() {
+      if (document.getElementById("authModal")) return;
+
+      const modal = document.createElement("div");
+      modal.id = "authModal";
+      modal.style.cssText = "position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:9999;padding:16px;";
+      modal.innerHTML = `
+        <div style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:16px;border:1px solid #e5e7eb;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="font-weight:800;">Acceso</div>
+            <button id="authClose" style="border:none;background:transparent;font-size:20px;cursor:pointer;">×</button>
+          </div>
+          <div style="margin-top:10px;display:grid;gap:10px;">
+            <input id="authEmail" type="email" placeholder="Correo" style="padding:10px;border:1px solid #e5e7eb;border-radius:10px;"/>
+            <input id="authPass" type="password" placeholder="Contraseña" style="padding:10px;border:1px solid #e5e7eb;border-radius:10px;"/>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button id="btnLogin" style="padding:10px 12px;border-radius:10px;border:none;cursor:pointer;background:#006C72;color:#fff;font-weight:700;">Entrar</button>
+              <button id="btnRegister" style="padding:10px 12px;border-radius:10px;border:1px solid #006C72;cursor:pointer;background:#fff;color:#006C72;font-weight:700;">Crear usuario</button>
+              <button id="btnLogout" style="padding:10px 12px;border-radius:10px;border:1px solid #dc2626;cursor:pointer;background:#fff;color:#dc2626;font-weight:700;display:none;">Salir</button>
+            </div>
+            <div id="authMsg" style="font-size:12px;color:#b91c1c;"></div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      const btnOpen = document.createElement("button");
+      btnOpen.id = "btnAuthOpen";
+      btnOpen.textContent = "Acceso";
+      btnOpen.title = "Iniciar sesión / salir";
+      btnOpen.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:9998;padding:10px 12px;border-radius:999px;border:none;cursor:pointer;background:#006C72;color:#fff;font-weight:800;box-shadow:0 10px 25px rgba(0,0,0,.15);";
+      document.body.appendChild(btnOpen);
+
+      const $ = (id)=>document.getElementById(id);
+      const show = (v)=>modal.style.display = v ? "flex" : "none";
+
+      $("authClose").onclick = ()=>show(false);
+      btnOpen.onclick = ()=>show(true);
+
+      $("btnLogin").onclick = async () => {
+        $("authMsg").textContent = "";
+        try {
+          await signInWithEmailAndPassword(auth, $("authEmail").value.trim(), $("authPass").value);
+          show(false);
+        } catch (e) {
+          $("authMsg").textContent = e?.message || "Error al iniciar sesión";
+        }
+      };
+
+      $("btnRegister").onclick = async () => {
+        $("authMsg").textContent = "";
+        try {
+          await createUserWithEmailAndPassword(auth, $("authEmail").value.trim(), $("authPass").value);
+          show(false);
+        } catch (e) {
+          $("authMsg").textContent = e?.message || "Error al crear usuario";
+        }
+      };
+
+      $("btnLogout").onclick = async () => {
+        await signOut(auth);
+      };
+    }
+
+    ensureAuthUI();
+
+    // ============================
+    //  Persistencia: Firestore <-> Planeador
+    //  Guardamos todo el estado en:
+    //  Usuarios/{uid}/State/main
+    // ============================
+    async function loadState(uid) {
+      const ref = doc(db, "Usuarios", uid, "State", "main");
+      const snap = await getDoc(ref);
+      return snap.exists() ? snap.data() : null;
+    }
+
+    async function saveState(uid, payload) {
+      const ref = doc(db, "Usuarios", uid, "State", "main");
+      await setDoc(ref, {
+        ...payload,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    }
+
+    // Debounce para no escribir en cada click
+    let saveTimer = null;
+    function scheduleSave(uid) {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => {
+        const p = window.__PLANEADOR__;
+        if (!p?.state) return;
+        const payload = {
+          prospects: p.state.prospects ?? [],
+          goalsInd: p.state.goalsInd ?? {},
+          slots: p.state.slots ?? {},
+          view: p.state.view ?? { type:"total", user:null }
+        };
+        try {
+          await saveState(uid, payload);
+        } catch (e) {
+          console.warn("No se pudo guardar en Firestore:", e);
+        }
+      }, 800);
+    }
+
+    // Hook: cuando el planeador usa localStorage, también guardamos en Firestore si hay sesión.
+    const originalSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = function(key, value) {
+      originalSetItem(key, value);
+      const u = auth.currentUser;
+      if (u && (key === (window.__PLANEADOR__?.STORAGE_KEY) || key === (window.__PLANEADOR__?.STORAGE_GOALS_KEY) || key === (window.__PLANEADOR__?.STORAGE_SLOTS_KEY))) {
+        scheduleSave(u.uid);
+      }
+    };
+
+    // Al iniciar sesión: cargamos el estado desde Firestore y refrescamos UI
+    onAuthStateChanged(auth, async (user) => {
+      const msg = document.getElementById("authMsg");
+      const btnLogout = document.getElementById("btnLogout");
+      if (btnLogout) btnLogout.style.display = user ? "inline-block" : "none";
+      if (!user) {
+        if (msg) msg.textContent = "";
+        return;
+      }
+
+      // Asegura doc de usuario
+      await setDoc(doc(db, "Usuarios", user.uid), {
+        email: user.email || null,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      const data = await loadState(user.uid);
+      if (!data) return;
+
+      const p = window.__PLANEADOR__;
+      if (!p?.state || !p?.render) return;
+
+      if (Array.isArray(data.prospects)) p.state.prospects = data.prospects;
+      if (data.goalsInd && typeof data.goalsInd === "object") p.state.goalsInd = data.goalsInd;
+      if (data.slots && typeof data.slots === "object") p.state.slots = data.slots;
+      if (data.view && typeof data.view === "object") p.state.view = data.view;
+
+      try { p.render(); } catch (e) { console.warn("Render falló:", e); }
+    });
+  </script>
+
 </body>
 </html>
