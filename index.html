@@ -754,6 +754,49 @@
           <div class="chip"><span class="dot"></span>ISO 9001:2015</div>
         </div>
       </div>
+<body>
+  <!-- BLOQUEO LOGIN (OBLIGATORIO) -->
+  <div id="authGate" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(244,247,249,.96);backdrop-filter:blur(10px);">
+    <div style="width:min(520px,100%);background:#fff;border:1px solid #e6edf3;border-radius:22px;box-shadow:0 18px 50px rgba(2,6,23,.12);overflow:hidden">
+      <div style="padding:16px 18px;background:linear-gradient(135deg,#006C72 0%,#0a5b5e 70%);color:#fff">
+        <div style="font-weight:900;font-size:16px">INFIHUILA · Acceso al Planeador</div>
+        <div style="opacity:.9;font-size:12px;margin-top:4px">Debes iniciar sesión para continuar.</div>
+      </div>
+
+      <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+        <label style="font-size:12px;font-weight:900;color:#64748b">Email</label>
+        <input id="loginEmail" type="email" placeholder="usuario@dominio.com"
+               style="width:100%;border:1px solid #e6edf3;border-radius:14px;padding:10px 12px;font-size:13px;outline:none">
+
+        <label style="font-size:12px;font-weight:900;color:#64748b;margin-top:6px">Contraseña</label>
+        <input id="loginPass" type="password" placeholder="••••••••"
+               style="width:100%;border:1px solid #e6edf3;border-radius:14px;padding:10px 12px;font-size:13px;outline:none">
+
+        <button id="btnLogin"
+                style="margin-top:8px;border:0;border-radius:14px;padding:11px 12px;font-weight:900;color:#fff;cursor:pointer;background:linear-gradient(135deg,#006C72 0%,#0a5b5e 70%);box-shadow:0 18px 40px rgba(11,111,115,.20)">
+          Entrar
+        </button>
+
+        <button id="btnReset"
+                style="border:1px solid rgba(11,111,115,.18);background:#fff;border-radius:14px;padding:10px 12px;font-weight:900;color:#0a5b5e;cursor:pointer">
+          Enviar correo de restablecimiento
+        </button>
+
+        <div id="loginMsg" style="font-size:12px;color:#64748b;margin-top:4px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENIDO REAL DEL PLANEADOR (se desbloquea tras login) -->
+  <div id="appShell" style="display:none">
+    <!-- ✅ PEGA AQUÍ TODO tu HTML actual del planeador (TODO lo que hoy tienes en body) -->
+  </div>
+
+  <!-- tu scripts... -->
+</body>
+
+
+
     </header>
 
     <!-- TABS + ACTIONS -->
@@ -2202,6 +2245,50 @@
     //  2) App Check: reCAPTCHA v3 (Site Key ya incluido)
     // ============================
 
+    const authGate = document.getElementById("authGate");
+const appShell = document.getElementById("appShell");
+
+function lockApp(message = "") {
+  appShell.style.display = "none";
+  authGate.style.display = "flex";
+  const msg = document.getElementById("loginMsg");
+  if (msg) msg.textContent = message;
+}
+
+function unlockApp() {
+  authGate.style.display = "none";
+  appShell.style.display = "block";
+}
+
+// Botón Login
+document.getElementById("btnLogin").addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  const pass  = document.getElementById("loginPass").value;
+
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+    // onAuthStateChanged se encargará de desbloquear
+  } catch (e) {
+    console.error(e);
+    lockApp("Credenciales inválidas o usuario no existe.");
+  }
+});
+
+// Reset contraseña
+document.getElementById("btnReset").addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  if(!email) return lockApp("Escribe tu email para enviar el restablecimiento.");
+
+  try {
+    await sendPasswordResetEmail(auth, email);
+    lockApp("Listo: revisa tu correo para restablecer la contraseña.");
+  } catch (e) {
+    console.error(e);
+    lockApp("No se pudo enviar el restablecimiento. Verifica el email.");
+  }
+});
+
+
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
     import { getAnalytics, isSupported as analyticsIsSupported } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-analytics.js";
     import {
@@ -2432,6 +2519,49 @@ if(!isActive){
   if (msg) msg.textContent = "Tu acceso está inactivo. Contacta al administrador.";
   await signOut(auth);
   return;
+onAuthStateChanged(auth, async (user) => {
+  // 🔒 Por defecto SIEMPRE bloqueado mientras validas
+  lockApp("Validando acceso…");
+
+  if (!user) {
+    // No hay sesión -> no entra
+    return lockApp("Ingresa usuario y contraseña para acceder.");
+  }
+
+  try {
+    // ✅ Lee permiso del usuario en Firestore
+    const uref = doc(db, "Usuarios", user.uid);
+    const usnap = await getDoc(uref);
+
+    if (!usnap.exists()) {
+      await signOut(auth);
+      return lockApp("Usuario no registrado. Contacta al administrador.");
+    }
+
+    const udata = usnap.data() || {};
+    const isActive = udata.isActive !== false;
+
+    if (!isActive) {
+      await signOut(auth);
+      return lockApp("Tu acceso está inactivo. Contacta al administrador.");
+    }
+
+    // ✅ Si pasó todo: desbloquea y carga el resto
+    unlockApp();
+
+    // 👉 aquí ya puedes llamar tus funciones normales:
+    // loadStateFromFirestore(user.uid)
+    // renderDashboard()
+    // etc...
+
+  } catch (err) {
+    console.error(err);
+    await signOut(auth);
+    return lockApp("Error validando permisos. Intenta nuevamente.");
+  }
+});
+
+
 }
 
 // (Opcional) si quieres que SOLO entren usuarios pre-registrados:
