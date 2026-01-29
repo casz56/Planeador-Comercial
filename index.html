@@ -2420,6 +2420,23 @@
       if (!user) {
         if (msg) msg.textContent = "";
         return;
+        // ✅ Control de acceso (role/isActive) antes de cargar estado
+const uref = doc(db, "Usuarios", user.uid);
+const usnap = await getDoc(uref);
+const udata = usnap.exists() ? (usnap.data() || {}) : {};
+
+const isActive = udata.isActive !== false;      // default true
+const role = udata.role || "user";              // default user
+
+if(!isActive){
+  if (msg) msg.textContent = "Tu acceso está inactivo. Contacta al administrador.";
+  await signOut(auth);
+  return;
+}
+
+// (Opcional) si quieres que SOLO entren usuarios pre-registrados:
+// if(!usnap.exists()){ if(msg) msg.textContent="Usuario no registrado"; await signOut(auth); return; }
+
       }
 
       // Asegura doc de usuario
