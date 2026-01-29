@@ -156,6 +156,7 @@
                 <label>Rol</label>
                 <select id="newRole">
                   <option value="user">user</option>
+                <option value="comercial">comercial</option>
                   <option value="admin">admin</option>
                 </select>
               </div>
@@ -192,7 +193,34 @@
       </div>
 
       <!-- Tabla usuarios -->
-      <div class="card">
+      
+    <div class="card">
+      <div class="hd">
+        <h3>Metas + Equipo (Firestore: Configuracion/Planeador_2026)</h3>
+        <div class="muted">Editable por admin · el Planeador lee estas metas y este equipo.</div>
+      </div>
+      <div class="bd">
+        <div class="grid2">
+          <div class="field">
+            <label>Metas (JSON)</label>
+            <textarea id="cfgMetas" rows="14" style="width:100%;border:1px solid var(--border);border-radius:16px;padding:10px;font:inherit;font-size:12px;"></textarea>
+            <div class="muted">Pega aquí el JSON de metas (year, colocacion, captacion).</div>
+          </div>
+          <div class="field">
+            <label>Equipo comercial (1 nombre por línea)</label>
+            <textarea id="cfgTeam" rows="14" style="width:100%;border:1px solid var(--border);border-radius:16px;padding:10px;font:inherit;font-size:12px;"></textarea>
+            <div class="muted">Estos nombres aparecen como pestañas en el Planeador.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+          <button class="btn" id="btnCfgLoad" type="button">Cargar configuración</button>
+          <button class="btn primary" id="btnCfgSave" type="button">Guardar configuración</button>
+          <span class="muted" id="cfgMsg"></span>
+        </div>
+      </div>
+    </div>
+
+<div class="card">
         <div class="hd">
           <h3>Usuarios registrados (Firestore: Usuarios)</h3>
           <div class="toolbar">
@@ -266,6 +294,56 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+
+    // ----------------------------
+    // Configuración metas/equipo
+    // ----------------------------
+    const cfgMetas = document.getElementById("cfgMetas");
+    const cfgTeam  = document.getElementById("cfgTeam");
+    const btnCfgSave = document.getElementById("btnCfgSave");
+    const btnCfgLoad = document.getElementById("btnCfgLoad");
+    const cfgMsg = document.getElementById("cfgMsg");
+
+    async function loadCfg(){
+      try{
+        const ref = doc(db, "Configuracion", "Planeador_2026");
+        const snap = await getDoc(ref);
+        if(!snap.exists()){
+          cfgMetas.value = JSON.stringify({
+            year: 2026,
+            colocacion: { total: 34017113417, lines: { fomento: 16778075609, tesoreria: 8389037808, cesion: 2850000000, libranza: 6000000000 } },
+            captacion: { total: 40000000000, lines: { vista: 30000000000, cdat: 10000000000 } }
+          }, null, 2);
+          cfgTeam.value = ["Alexander","Luis Eduardo","Carolina","Natalia"].join("\n");
+          cfgMsg.textContent = "No existía. Se cargó un ejemplo para guardar.";
+          return;
+        }
+        const d = snap.data() || {};
+        cfgMetas.value = JSON.stringify(d.metas || {}, null, 2);
+        cfgTeam.value  = (Array.isArray(d.team)? d.team : []).join("\n");
+        cfgMsg.textContent = "Configuración cargada.";
+      }catch(e){
+        console.error(e);
+        cfgMsg.textContent = "Error cargando configuración (revisa reglas de Firestore).";
+      }
+    }
+
+    async function saveCfg(){
+      try{
+        const metas = cfgMetas.value.trim() ? JSON.parse(cfgMetas.value) : {};
+        const team = cfgTeam.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+        const ref = doc(db, "Configuracion", "Planeador_2026");
+        await setDoc(ref, { metas, team, updatedAt: serverTimestamp() }, { merge:true });
+        cfgMsg.textContent = "Configuración guardada ✅";
+      }catch(e){
+        console.error(e);
+        cfgMsg.textContent = "No se pudo guardar. Verifica JSON y reglas.";
+      }
+    }
+
+    btnCfgLoad?.addEventListener("click", loadCfg);
+    btnCfgSave?.addEventListener("click", saveCfg);
+
 
     // App secundario (crear usuarios SIN cerrar sesión del admin)
     const app2 = initializeApp(firebaseConfig, "secondary");

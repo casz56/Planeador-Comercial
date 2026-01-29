@@ -768,7 +768,7 @@
     </div>
   </div>
 
-  <div class="wrap">
+  <div class="wrap" id="appShell" style="display:none">
     <!-- HEADER -->
     <header class="header">
       <div class="header-row">
@@ -796,21 +796,7 @@
     <!-- TABS + ACTIONS -->
     <div class="tabs-row">
       <div class="tabs" id="navTabs">
-        <button class="tab active" type="button" data-view="total">
-          Tablero Total <span class="badge" id="badgeTotal">0</span>
-        </button>
-        <button class="tab" type="button" data-view="comercial" data-user="Alexander">
-          Alexander <span class="badge" id="badgeAlexander">0</span>
-        </button>
-        <button class="tab" type="button" data-view="comercial" data-user="Luis Eduardo">
-          Luis Eduardo <span class="badge" id="badgeLuisEduardo">0</span>
-        </button>
-        <button class="tab" type="button" data-view="comercial" data-user="Carolina">
-          Carolina <span class="badge" id="badgeCarolina">0</span>
-        </button>
-        <button class="tab" type="button" data-view="comercial" data-user="Natalia">
-          Natalia <span class="badge" id="badgeNatalia">0</span>
-        </button>
+        <!-- tabs dinámicas desde Firestore -->
       </div>
 
       <div class="top-actions">
@@ -1176,7 +1162,30 @@
     /***********************
      * 1) Config / helpers
      ***********************/
-    const TEAM = ["Alexander", "Luis Eduardo", "Carolina", "Natalia"];
+    
+    function buildNavTabs(){
+      const nav = document.getElementById("navTabs");
+      if(!nav) return;
+      nav.innerHTML = "";
+      const totalBtn = document.createElement("button");
+      totalBtn.className = "tab active";
+      totalBtn.type = "button";
+      totalBtn.dataset.view = "total";
+      totalBtn.innerHTML = `Tablero Total <span class="badge" id="badgeTotal">0</span>`;
+      nav.appendChild(totalBtn);
+
+      TEAM.forEach(name=>{
+        const btn = document.createElement("button");
+        btn.className = "tab";
+        btn.type = "button";
+        btn.dataset.view = "comercial";
+        btn.dataset.user = name;
+        btn.innerHTML = `${name} <span class="badge" id="badge_${safeKey(name)}">0</span>`;
+        nav.appendChild(btn);
+      });
+    }
+
+    let TEAM = (window.__TEAM__ && Array.isArray(window.__TEAM__) && window.__TEAM__.length) ? window.__TEAM__ : ["Alexander","Luis Eduardo","Carolina","Natalia"];
 
     // Metas 2026 (según la imagen)
     const GOALS_2026 = {
@@ -1644,20 +1653,20 @@
       }
     }
 
+    function safeKey(name){
+      return String(name||"")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+        .replace(/[^a-zA-Z0-9]+/g,"_")
+        .replace(/^_+|_+$/g,"");
+    }
+
     function updateBadges(){
       const all = [...state.prospects];
       document.getElementById("badgeTotal").textContent = all.length;
 
-      const map = {
-        "Alexander":"badgeAlexander",
-        "Luis Eduardo":"badgeLuisEduardo",
-        "Carolina":"badgeCarolina",
-        "Natalia":"badgeNatalia"
-      };
-
       TEAM.forEach(u=>{
         const n = all.filter(p=>p.user===u).length;
-        const id = map[u];
+        const id = "badge_"+safeKey(u);
         const badge = document.getElementById(id);
         if(badge) badge.textContent = n;
       });
@@ -2345,6 +2354,20 @@
     }
   });
 
+
+  // ----------------------------
+  // Configuración institucional (metas + equipo)
+  // Doc: Configuracion/Planeador_2026
+  // ----------------------------
+  async function loadConfig2026(){
+    const cref = doc(db, "Configuracion", "Planeador_2026");
+    const csnap = await getDoc(cref);
+    if(csnap.exists()){
+      const c = csnap.data() || {};
+      if (Array.isArray(c.team) && c.team.length) window.__TEAM__ = c.team;
+      if (c.metas) window.__GOALS_2026__ = c.metas;
+    }
+  }
   // ----------------------------
   // Firestore helpers
   //   - Estado:  Usuarios/{uid}/State/main
@@ -2471,7 +2494,16 @@
       const data = await loadState(user.uid);
 
       // Desbloquea UI (aunque Firestore no tenga nada todavía)
+      await loadConfig2026();
+      // refrescar TEAM en runtime
+      if (window.__TEAM__ && Array.isArray(window.__TEAM__) && window.__TEAM__.length) {
+        // actualiza variable TEAM del script principal (si existe)
+        try { if (window.__PLANEADOR__?.state) { /* noop */ } } catch(_){ }
+      }
       unlockApp();
+      // Forzar re-render para que tome TEAM/metas
+      try { window.__PLANEADOR__?.render?.(); } catch(_){ }
+
 
       // Si hay datos, aplícalos al planeador
       if (data) {
