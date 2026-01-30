@@ -636,7 +636,11 @@ async function saveGoalsUI(year){
     // === Config: Equipo y Metas ===
 btnSaveTeam?.addEventListener("click", async ()=>{
   teamMsg && (teamMsg.textContent = "Guardando…");
-  try{ await saveTeamConfigUI(); } catch(e){ console.error(e); teamMsg && (teamMsg.textContent="Error guardando equipo."); }
+  try{ await saveTeamConfigUI(); } catch(e){ console.error(e); teamMsg && (teamMsg.textContent = `Error guardando equipo: ${e?.code || e?.message || e}`);
+      // Sugerencia rápida para permisos
+      if(String(e?.code||"").includes("permission-denied")){
+        teamMsg.textContent += " (Permisos Firestore: revisa rules/deploy)";
+      } }
 });
 
 const nowY = new Date().getFullYear();

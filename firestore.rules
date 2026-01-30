@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/Usuarios/$(request.auth.uid));
+    }
+
+    function isActive() {
+      return signedIn() && userDoc().exists() && userDoc().data.isActive == true;
+    }
+
+    function isAdmin() {
+      return isActive() && userDoc().data.role == "admin";
+    }
+
+    // Configuración del equipo (solo admin)
+    match /Config/{docId} {
+      allow read: if signedIn() && isActive();
+      allow write: if isAdmin();
+    }
+
+    // Metas institucionales por vigencia (solo admin)
+    match /MetasInstitucionales/{vigencia} {
+      allow read: if signedIn() && isActive();
+      allow write: if isAdmin();
+    }
+
+    // Usuarios
+    match /Usuarios/{uid} {
+      // El usuario puede leer su doc; el admin puede leer todos
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
+
+      // Crear su propio doc (auto-provisión). Admin puede crear cualquiera.
+      allow create: if (signedIn() && request.auth.uid == uid) || isAdmin();
+
+      // Actualizar su propio doc (por ejemplo updatedAt). Admin puede actualizar cualquiera.
+      allow update: if (signedIn() && request.auth.uid == uid) || isAdmin();
+
+      // Borrar solo admin
+      allow delete: if isAdmin();
+
+      // Subcolección State por vigencia
+      match /State/{vigencia} {
+        allow read, write: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      }
+    }
+
+    // Por defecto, negar todo
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
