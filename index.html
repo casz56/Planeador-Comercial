@@ -787,8 +787,13 @@
           <div class="chip"><span class="dot"></span>Vigilada por la SFC</div>
           <div class="chip"><span class="dot"></span>Calificación AA+</div>
           <div class="chip"><span class="dot"></span>ISO 9001:2015</div>
-           <button class="btn secondary" id="btnLogout" class="chip chip-btn" type="button" title="Cerrar sesión">Cerrar sesión</button>
+	        <button class="btn secondary" id="btnLogout" class="chip chip-btn" type="button" title="Cerrar sesión">Cerrar sesión</button>
+        </div>
       </div>
+
+
+
+
 
     </header>
 
@@ -1041,7 +1046,7 @@
         </div>
 
         <div class="muted" style="margin-top:10px">
-          Nota: Los datos se guardan en este navegador (LocalStorage). Usa Exportar JSON para respaldo o traslado.
+          Nota: Los datos se guardan por <b>usuario</b> en <b>Firestore</b> (y se mantiene una copia local como caché). Usa Exportar JSON para respaldo o traslado.
         </div>
       </div>
       <div class="mft">
@@ -1139,8 +1144,8 @@
 
         <h4>6) Guardado automático (seguimiento real)</h4>
         <ul>
-          <li>Los datos se guardan en <b>LocalStorage</b> del navegador (no requiere servidor y funciona en GitHub Pages).</li>
-          <li>Si cambias de equipo o navegador, no verás los datos anteriores (porque se guardan localmente).</li>
+          <li>Los datos se guardan por <b>usuario</b> en <b>Firestore</b> y se mantiene una copia local como caché (funciona en GitHub Pages).</li>
+          <li>Si cambias de equipo o navegador, verás tus datos al iniciar sesión (porque se guardan en Firestore por usuario).</li>
           <li>Recomendación: realiza exportaciones periódicas a Excel como respaldo operativo.</li>
         </ul>
 
@@ -2579,15 +2584,22 @@ async function ensureConfigDefaults(year){
       const p = window.__PLANEADOR__;
       if (!p?.state) return;
 
+      const yearNow = window.__PLANEADOR__?.getVigencia?.() || window.__PLANEADOR__?.vigencia || new Date().getFullYear();
       const payload = {
+        // Datos por usuario y por vigencia
         prospects: p.state.prospects ?? [],
         goalsInd: p.state.goalsInd ?? {},
         slots: p.state.slots ?? {},
-        view: p.state.view ?? { type: "total", user: null }
+        view: p.state.view ?? { type: "total", user: null },
+        meta: {
+          year: Number(yearNow),
+          savedByUid: String(uid),
+          savedByEmail: auth.currentUser?.email || null
+        }
       };
 
       try {
-        await saveState(uid, window.__PLANEADOR__?.getVigencia?.() || window.__PLANEADOR__?.vigencia || new Date().getFullYear(), payload);
+        await saveState(uid, yearNow, payload);
       } catch (e) {
         console.warn("No se pudo guardar en Firestore:", e);
       }
@@ -2679,6 +2691,12 @@ if (p?.onVigenciaChange) {
         if (dataY.goalsInd && typeof dataY.goalsInd === "object") p.state.goalsInd = dataY.goalsInd;
         if (dataY.slots && typeof dataY.slots === "object") p.state.slots = dataY.slots;
         if (dataY.view && typeof dataY.view === "object") p.state.view = dataY.view;
+        // Actualiza caché local para la vigencia seleccionada
+        try {
+          if (p.STORAGE_KEY) safeSetJSON(p.STORAGE_KEY, p.state.prospects);
+          if (p.STORAGE_GOALS_KEY) safeSetJSON(p.STORAGE_GOALS_KEY, p.state.goalsInd);
+          if (p.STORAGE_SLOTS_KEY) safeSetJSON(p.STORAGE_SLOTS_KEY, p.state.slots);
+        } catch (e) {}
         try { p.render?.(); } catch(e){}
       } else {
         // Si no hay data en Firestore, deja lo local (ya lo cargó setVigencia)
@@ -2702,6 +2720,13 @@ if (p?.onVigenciaChange) {
           if (data.goalsInd && typeof data.goalsInd === "object") p.state.goalsInd = data.goalsInd;
           if (data.slots && typeof data.slots === "object") p.state.slots = data.slots;
           if (data.view && typeof data.view === "object") p.state.view = data.view;
+
+          // Sincroniza caché local para que la UI (y exportaciones) queden coherentes
+          try {
+            if (p.STORAGE_KEY) safeSetJSON(p.STORAGE_KEY, p.state.prospects);
+            if (p.STORAGE_GOALS_KEY) safeSetJSON(p.STORAGE_GOALS_KEY, p.state.goalsInd);
+            if (p.STORAGE_SLOTS_KEY) safeSetJSON(p.STORAGE_SLOTS_KEY, p.state.slots);
+          } catch (e) {}
 
           try { p.render(); } catch (e) { console.warn("Render falló:", e); }
         }
