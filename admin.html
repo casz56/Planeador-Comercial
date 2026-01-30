@@ -443,14 +443,43 @@ async function saveGoalsUI(year){
       return !!(data && data.role === "admin" && data.isActive !== false);
     }
 
-    async function ensureAdminDoc(user){
-      const ref = doc(db, "Usuarios", user.uid);
-      await setDoc(ref, {
-        email: user.email || null,
-        role: "admin",
+    // Bootstrap seguro: solo estos correos pueden auto-crearse como admin si no existe su doc
+    const BOOTSTRAP_ADMINS = ["admin@infihuila.gov.co"];
+
+    
+  async function ensureUserDoc(user) {
+    if (!user) return;
+    const uref = doc(db, "Usuarios", user.uid);
+    const usnap = await getDoc(uref);
+    if (!usnap.exists()) {
+      await setDoc(uref, {
+        email: user.email || "",
+        name: (user.email || "").split("@")[0] || "user",
+        role: "user",
         isActive: true,
+        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      }, { merge:true });
+      });
+    }
+  }
+async function ensureBootstrapAdmin(user){
+    console.log('[BOOTSTRAP] user', user.email, user.uid);
+      if(!user?.email) return;
+      const email = String(user.email).toLowerCase().trim();
+      if(!BOOTSTRAP_ADMINS.includes(email)) return;
+
+      const ref = doc(db, "Usuarios", user.uid);
+      const snap = await getDoc(ref);
+      if(!snap.exists()){
+        await setDoc(ref, {
+          email: user.email,
+          name: "admin",
+          role: "admin",
+          isActive: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge:true });
+      }
     }
 
     function showLoggedOut(){
@@ -461,7 +490,7 @@ async function saveGoalsUI(year){
     function showLoggedIn(user){
       loginCard.classList.add("hidden");
       adminPanel.classList.remove("hidden");
-      sessionChip.textContent = user?.email ? `Admin: ${user.email}` : `Admin: ${user.uid}`;
+      sessionChip.textContent = user?.email ? `Admin: ${user.email} | UID: ${user.uid}` : `Admin UID: ${user.uid}`;
     }
 
     async function loadUsers(){
@@ -662,30 +691,28 @@ onAuthStateChanged(auth, async (user)=>{
       if(!user){ showLoggedOut(); return; }
 
       try{
-        // (Opcional) si estás entrando por primera vez con tu cuenta admin y aún no existe doc:
-        const ref = doc(db, "Usuarios", user.uid);
-        const snap = await getDoc(ref);
-        if(!snap.exists()){
-          await ensureAdminDoc(user);
-        }
+        // Bootstrap seguro (solo admin@infihuila.gov.co)
+        await ensureUserDoc(user);
+        await ensureBootstrapAdmin(user);
 
         const ok = await isAdmin(user.uid);
         if(!ok){
           await signOut(auth);
           showLoggedOut();
-          loginMsg.textContent = "Acceso denegado: tu usuario no es admin o está inactivo.";
+          loginMsg.textContent = `Acceso denegado: tu usuario no es admin o está inactivo. UID: ${user.uid}`;
           return;
         }
 
         showLoggedIn(user);
-        await loadUsers();
+        try{ await loadUsers(); }
+        catch(e){ console.warn('loadUsers failed', e); panelMsg.textContent = `No fue posible listar usuarios: ${e?.code||e?.message||e}`; }
         try{ await loadTeamConfigUI(); } catch(e){ console.warn(e); }
         try{ const y = Number(goalsYear?.value || new Date().getFullYear()); await loadGoalsUI(y); } catch(e){ console.warn(e); }
       }catch(err){
         console.error(err);
         await signOut(auth);
         showLoggedOut();
-        loginMsg.textContent = "Error validando permisos. Revisa reglas de Firestore.";
+        loginMsg.textContent = `Error validando permisos: ${err?.code || err?.message || err}. Revisa reglas de Firestore.`;
       }
     });
   </script>
