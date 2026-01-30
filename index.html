@@ -178,6 +178,8 @@
       font-weight:900;
       font-size: 13px;
     }
+    .chip-btn{ cursor:pointer; }
+    .chip-btn:hover{ background: rgba(255,255,255,.18); }
     .dot{
       width: 10px; height: 10px;
       border-radius:999px;
@@ -785,6 +787,7 @@
           <div class="chip"><span class="dot"></span>Vigilada por la SFC</div>
           <div class="chip"><span class="dot"></span>Calificación AA+</div>
           <div class="chip"><span class="dot"></span>ISO 9001:2015</div>
+	          <button id="btnLogout" class="chip chip-btn" type="button" title="Cerrar sesión">Cerrar sesión</button>
         </div>
       </div>
 
@@ -2436,6 +2439,7 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   const loginPass = document.getElementById("loginPass");
   const btnLogin = document.getElementById("btnLogin");
   const btnReset = document.getElementById("btnReset");
+  const btnLogout = document.getElementById("btnLogout");
 
   function lockApp(message = "Ingresa usuario y contraseña para acceder.") {
     if (authGate) authGate.style.display = "flex";
@@ -2485,6 +2489,15 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   }
 
   btnLogin?.addEventListener("click", doLogin);
+  btnLogout?.addEventListener("click", async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      lockApp();
+    }
+  });
   loginPass?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") doLogin();
   });
