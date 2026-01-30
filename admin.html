@@ -156,7 +156,6 @@
                 <label>Rol</label>
                 <select id="newRole">
                   <option value="user">user</option>
-                <option value="comercial">comercial</option>
                   <option value="admin">admin</option>
                 </select>
               </div>
@@ -193,34 +192,7 @@
       </div>
 
       <!-- Tabla usuarios -->
-      
-    <div class="card">
-      <div class="hd">
-        <h3>Metas + Equipo (Firestore: Configuracion/Planeador_2026)</h3>
-        <div class="muted">Editable por admin · el Planeador lee estas metas y este equipo.</div>
-      </div>
-      <div class="bd">
-        <div class="grid2">
-          <div class="field">
-            <label>Metas (JSON)</label>
-            <textarea id="cfgMetas" rows="14" style="width:100%;border:1px solid var(--border);border-radius:16px;padding:10px;font:inherit;font-size:12px;"></textarea>
-            <div class="muted">Pega aquí el JSON de metas (year, colocacion, captacion).</div>
-          </div>
-          <div class="field">
-            <label>Equipo comercial (1 nombre por línea)</label>
-            <textarea id="cfgTeam" rows="14" style="width:100%;border:1px solid var(--border);border-radius:16px;padding:10px;font:inherit;font-size:12px;"></textarea>
-            <div class="muted">Estos nombres aparecen como pestañas en el Planeador.</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center;">
-          <button class="btn" id="btnCfgLoad" type="button">Cargar configuración</button>
-          <button class="btn primary" id="btnCfgSave" type="button">Guardar configuración</button>
-          <span class="muted" id="cfgMsg"></span>
-        </div>
-      </div>
-    </div>
-
-<div class="card">
+      <div class="card">
         <div class="hd">
           <h3>Usuarios registrados (Firestore: Usuarios)</h3>
           <div class="toolbar">
@@ -249,7 +221,43 @@
           <div class="msg muted">
             Tip: puedes cambiar rol/activo y queda guardado en Firestore inmediatamente.
           </div>
+        <!-- Equipo Comercial (NO quemado) -->
+<div class="card">
+  <div class="hd"><h3>Equipo Comercial (para tabs en index.html)</h3></div>
+  <div class="bd">
+    <div class="msg muted">Escribe <b>un nombre por línea</b>. Ej: agrega <b>Karen</b> o cambia <b>Carolina</b> por otro nombre. Se guarda en <code>Config/Equipo</code>.</div>
+    <textarea id="teamTxt" style="width:100%;min-height:160px;padding:12px;border-radius:14px;border:1px solid var(--border);font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"></textarea>
+    <div class="toolbar" style="margin-top:10px">
+      <button class="btn primary" id="btnSaveTeam">Guardar equipo</button>
+      <span id="teamMsg" class="msg muted"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Metas institucionales por vigencia -->
+<div class="card">
+  <div class="hd"><h3>Metas institucionales por Vigencia</h3></div>
+  <div class="bd">
+    <div class="toolbar">
+      <div class="field">
+        <label>Vigencia (año)</label>
+        <input id="goalsYear" type="number" min="2020" max="2100" step="1" />
+      </div>
+      <div class="field" style="flex:1">
+        <label>Acciones</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" id="btnLoadGoals">Cargar</button>
+          <button class="btn primary" id="btnSaveGoals">Guardar</button>
         </div>
+      </div>
+    </div>
+
+    <div class="msg muted">Edita el JSON y guarda. Se almacena en <code>MetasInstitucionales/{AAAA}</code>. El planeador puede cambiar de vigencia y mantiene histórico.</div>
+    <textarea id="goalsTxt" style="width:100%;min-height:220px;padding:12px;border-radius:14px;border:1px solid var(--border);font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"></textarea>
+    <div id="goalsMsg" class="msg muted" style="margin-top:8px"></div>
+  </div>
+</div>
+</div>
       </div>
     </section>
   </div>
@@ -295,56 +303,6 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // ----------------------------
-    // Configuración metas/equipo
-    // ----------------------------
-    const cfgMetas = document.getElementById("cfgMetas");
-    const cfgTeam  = document.getElementById("cfgTeam");
-    const btnCfgSave = document.getElementById("btnCfgSave");
-    const btnCfgLoad = document.getElementById("btnCfgLoad");
-    const cfgMsg = document.getElementById("cfgMsg");
-
-    async function loadCfg(){
-      try{
-        const ref = doc(db, "Configuracion", "Planeador_2026");
-        const snap = await getDoc(ref);
-        if(!snap.exists()){
-          cfgMetas.value = JSON.stringify({
-            year: 2026,
-            colocacion: { total: 34017113417, lines: { fomento: 16778075609, tesoreria: 8389037808, cesion: 2850000000, libranza: 6000000000 } },
-            captacion: { total: 40000000000, lines: { vista: 30000000000, cdat: 10000000000 } }
-          }, null, 2);
-          cfgTeam.value = ["Alexander","Luis Eduardo","Carolina","Natalia"].join("\n");
-          cfgMsg.textContent = "No existía. Se cargó un ejemplo para guardar.";
-          return;
-        }
-        const d = snap.data() || {};
-        cfgMetas.value = JSON.stringify(d.metas || {}, null, 2);
-        cfgTeam.value  = (Array.isArray(d.team)? d.team : []).join("\n");
-        cfgMsg.textContent = "Configuración cargada.";
-      }catch(e){
-        console.error(e);
-        cfgMsg.textContent = "Error cargando configuración (revisa reglas de Firestore).";
-      }
-    }
-
-    async function saveCfg(){
-      try{
-        const metas = cfgMetas.value.trim() ? JSON.parse(cfgMetas.value) : {};
-        const team = cfgTeam.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-        const ref = doc(db, "Configuracion", "Planeador_2026");
-        await setDoc(ref, { metas, team, updatedAt: serverTimestamp() }, { merge:true });
-        cfgMsg.textContent = "Configuración guardada ✅";
-      }catch(e){
-        console.error(e);
-        cfgMsg.textContent = "No se pudo guardar. Verifica JSON y reglas.";
-      }
-    }
-
-    btnCfgLoad?.addEventListener("click", loadCfg);
-    btnCfgSave?.addEventListener("click", saveCfg);
-
-
     // App secundario (crear usuarios SIN cerrar sesión del admin)
     const app2 = initializeApp(firebaseConfig, "secondary");
     const auth2 = getAuth(app2);
@@ -360,7 +318,112 @@
     const panelMsg = $("panelMsg");
     const tbody = $("tbody");
 
+const teamTxt = $("teamTxt");
+const btnSaveTeam = $("btnSaveTeam");
+const teamMsg = $("teamMsg");
+
+const goalsYear = $("goalsYear");
+const goalsTxt = $("goalsTxt");
+const btnLoadGoals = $("btnLoadGoals");
+const btnSaveGoals = $("btnSaveGoals");
+const goalsMsg = $("goalsMsg");
+
+
     let cachedUsers = [];
+
+const DEFAULT_TEAM = ["Alexander","Luis Eduardo","Carolina","Natalia"];
+const DEFAULT_GOALS_2026 = {
+  colocacion: {
+    total: 34017113417,
+    lines: {
+      "Fomento": 16778075609,
+      "Tesorería": 8389037808,
+      "Cesión de derechos": 2850000000,
+      "Libranza": 6000000000
+    }
+  },
+  captacion: {
+    total: 40000000000,
+    lines: {
+      "Depósitos a la Vista": 30000000000,
+      "Depósitos a término fijo (CDAT)": 10000000000
+    }
+  }
+};
+
+function goalsSeedForYear(y){
+  return (Number(y)===2026)
+    ? DEFAULT_GOALS_2026
+    : {
+        colocacion:{ total:0, lines: { "Fomento":0, "Tesorería":0, "Cesión de derechos":0, "Libranza":0 } },
+        captacion:{ total:0, lines: { "Depósitos a la Vista":0, "Depósitos a término fijo (CDAT)":0 } }
+      };
+}
+
+async function loadTeamConfigUI(){
+  if(!teamTxt) return;
+  const ref = doc(db, "Config", "Equipo");
+  const snap = await getDoc(ref);
+  if(!snap.exists()){
+    await setDoc(ref, { team: DEFAULT_TEAM, updatedAt: serverTimestamp() }, { merge:true });
+    teamTxt.value = DEFAULT_TEAM.join("\n");
+    return;
+  }
+  const data = snap.data() || {};
+  const team = Array.isArray(data.team) ? data.team : DEFAULT_TEAM;
+  teamTxt.value = team.map(x=>String(x)).join("\n");
+}
+
+async function saveTeamConfigUI(){
+  if(!teamTxt) return;
+  const team = teamTxt.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if(team.length===0){
+    teamMsg && (teamMsg.textContent = "No puedes guardar un equipo vacío.");
+    return;
+  }
+  await setDoc(doc(db, "Config", "Equipo"), { team, updatedAt: serverTimestamp() }, { merge:true });
+  teamMsg && (teamMsg.textContent = "Equipo guardado.");
+  setTimeout(()=>{ if(teamMsg) teamMsg.textContent=""; }, 2500);
+}
+
+async function loadGoalsUI(year){
+  if(!goalsTxt) return;
+  const y = String(year);
+  const ref = doc(db, "MetasInstitucionales", y);
+  const snap = await getDoc(ref);
+  if(!snap.exists()){
+    const seed = goalsSeedForYear(Number(year));
+    await setDoc(ref, { ...seed, updatedAt: serverTimestamp() }, { merge:true });
+    goalsTxt.value = JSON.stringify(seed, null, 2);
+    goalsMsg && (goalsMsg.textContent = `No existía: se creó semilla para ${y}.`);
+    return;
+  }
+  const data = snap.data() || {};
+  // Quita updatedAt para edición limpia
+  const { updatedAt, ...clean } = data;
+  goalsTxt.value = JSON.stringify(clean, null, 2);
+  goalsMsg && (goalsMsg.textContent = `Metas cargadas para ${y}.`);
+}
+
+async function saveGoalsUI(year){
+  if(!goalsTxt) return;
+  const y = String(year);
+  let obj;
+  try{
+    obj = JSON.parse(goalsTxt.value || "{}");
+  }catch(e){
+    goalsMsg && (goalsMsg.textContent = "JSON inválido. Revisa comas/llaves.");
+    return;
+  }
+  if(!obj.colocacion || !obj.captacion){
+    goalsMsg && (goalsMsg.textContent = "Debe existir 'colocacion' y 'captacion'.");
+    return;
+  }
+  await setDoc(doc(db, "MetasInstitucionales", y), { ...obj, updatedAt: serverTimestamp() }, { merge:true });
+  goalsMsg && (goalsMsg.textContent = `Metas guardadas para ${y}.`);
+  setTimeout(()=>{ if(goalsMsg) goalsMsg.textContent=""; }, 2500);
+}
+
 
     function pillRole(role){
       return role === "admin"
@@ -561,6 +624,8 @@
         $("newEmail").value = "";
         $("newPass").value = "";
         await loadUsers();
+        try{ await loadTeamConfigUI(); } catch(e){ console.warn(e); }
+        try{ const y = Number(goalsYear?.value || new Date().getFullYear()); await loadGoalsUI(y); } catch(e){ console.warn(e); }
       }catch(err){
         console.error(err);
         createMsg.textContent = err?.message || "No se pudo crear el usuario.";
@@ -568,7 +633,28 @@
     };
 
     // Gate principal: solo admins (role=admin y activo)
-    onAuthStateChanged(auth, async (user)=>{
+    // === Config: Equipo y Metas ===
+btnSaveTeam?.addEventListener("click", async ()=>{
+  teamMsg && (teamMsg.textContent = "Guardando…");
+  try{ await saveTeamConfigUI(); } catch(e){ console.error(e); teamMsg && (teamMsg.textContent="Error guardando equipo."); }
+});
+
+const nowY = new Date().getFullYear();
+if(goalsYear) goalsYear.value = String(nowY);
+
+btnLoadGoals?.addEventListener("click", async ()=>{
+  const y = Number(goalsYear?.value || nowY);
+  goalsMsg && (goalsMsg.textContent = "Cargando…");
+  try{ await loadGoalsUI(y); } catch(e){ console.error(e); goalsMsg && (goalsMsg.textContent="Error cargando metas."); }
+});
+
+btnSaveGoals?.addEventListener("click", async ()=>{
+  const y = Number(goalsYear?.value || nowY);
+  goalsMsg && (goalsMsg.textContent = "Guardando…");
+  try{ await saveGoalsUI(y); } catch(e){ console.error(e); goalsMsg && (goalsMsg.textContent="Error guardando metas."); }
+});
+
+onAuthStateChanged(auth, async (user)=>{
       if(!user){ showLoggedOut(); return; }
 
       try{
@@ -589,6 +675,8 @@
 
         showLoggedIn(user);
         await loadUsers();
+        try{ await loadTeamConfigUI(); } catch(e){ console.warn(e); }
+        try{ const y = Number(goalsYear?.value || new Date().getFullYear()); await loadGoalsUI(y); } catch(e){ console.warn(e); }
       }catch(err){
         console.error(err);
         await signOut(auth);
