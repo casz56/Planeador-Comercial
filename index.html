@@ -2413,8 +2413,8 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   const auth = getAuth(app);
   const db = getFirestore(app);
 // Defaults (idénticos a los del index principal)
-const DEFAULT_TEAM = ["Alexander", "Luis Eduardo", "Carolina", "Natalia"];
-const DEFAULT_GOALS_2026 = {
+  const DEFAULT_TEAM_SEED = (window.DEFAULT_TEAM && Array.isArray(window.DEFAULT_TEAM)) ? window.DEFAULT_TEAM : ["Alexander", "Luis Eduardo", "Carolina", "Natalia"];
+  const DEFAULT_GOALS_2026_SEED = window.DEFAULT_GOALS ? window.DEFAULT_GOALS : {
   colocacion: {
     total: 34017113417,
     lines: { "Fomento": 16778075609, "Tesorería": 8389037808, "Cesión de derechos": 2850000000, "Libranza": 6000000000 }
@@ -2423,7 +2423,7 @@ const DEFAULT_GOALS_2026 = {
     total: 40000000000,
     lines: { "Depósitos a la Vista": 30000000000, "Depósitos a término fijo (CDAT)": 10000000000 }
   }
-};
+  };
 
 
   // ----------------------------
@@ -2545,14 +2545,14 @@ async function ensureConfigDefaults(year){
   const teamRef = doc(db, "Config", "Equipo");
   const teamSnap = await getDoc(teamRef);
   if(!teamSnap.exists()){
-    await setDoc(teamRef, { team: DEFAULT_TEAM, updatedAt: serverTimestamp() }, { merge:true });
+    await setDoc(teamRef, { team: DEFAULT_TEAM_SEED, updatedAt: serverTimestamp() }, { merge:true });
   }
 
   // Asegura metas para la vigencia (si no existe)
   const goalsRef = doc(db, "MetasInstitucionales", String(year));
   const goalsSnap = await getDoc(goalsRef);
   if(!goalsSnap.exists()){
-    const seed = (Number(year) === 2026) ? DEFAULT_GOALS_2026 : {
+    const seed = (Number(year) === 2026) ? DEFAULT_GOALS_2026_SEED : {
       colocacion:{ total:0, lines: { "Fomento":0, "Tesorería":0, "Cesión de derechos":0, "Libranza":0 } },
       captacion:{ total:0, lines: { "Depósitos a la Vista":0, "Depósitos a término fijo (CDAT)":0 } }
     };
@@ -2560,16 +2560,6 @@ async function ensureConfigDefaults(year){
   }
 }
 
-
-    const data = snap.data() || {};
-    const needs =
-      !data.colocacion || typeof data.colocacion !== "object" ||
-      !data.captacion || typeof data.captacion !== "object";
-
-    if (needs) {
-      await setDoc(ref, defaults, { merge: true });
-    }
-  }
 
   // ----------------------------
   // Auto-sync: cuando cambie el localStorage, guarda en Firestore (si hay sesión)
@@ -2621,12 +2611,21 @@ async function ensureConfigDefaults(year){
       const uref = doc(db, "Usuarios", user.uid);
       const usnap = await getDoc(uref);
 
+      let udata = {};
       if (!usnap.exists()) {
-        await signOut(auth);
-        return lockApp("Usuario no registrado. Contacta al administrador.");
+        // Auto-provisión: crea el doc del usuario la primera vez que inicia sesión.
+        // El admin luego puede ajustar rol / activar-desactivar desde admin.html
+        udata = { isActive: true, role: "user" };
+        await setDoc(uref, {
+          email: user.email || null,
+          role: "user",
+          isActive: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } else {
+        udata = usnap.data() || {};
       }
-
-      const udata = usnap.data() || {};
       const isActive = udata.isActive !== false;
 
       if (!isActive) {
