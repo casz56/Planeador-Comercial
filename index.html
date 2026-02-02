@@ -2522,15 +2522,60 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   //   - Estado:  Usuarios/{uid}/State/main
   //   - Metas:   Usuarios/{uid}/Metas/2026
   // ----------------------------
-  async function loadState(uid, year) {
-  const ref = doc(db, "Usuarios", uid, "State", String(year));
-  const snap = await getDoc(ref);
-  return snap.exists() ? (snap.data() || null) : null;
+  
+async function loadState(uid, year) {
+  // Nuevo esquema: Usuarios/{uid}/State/{YYYY}
+  // Compatibilidad: Usuarios/{uid}/State/main (versiones anteriores)
+  const y = String(year);
+
+  // 1) Intentar por vigencia (recomendado)
+  try {
+    const refY = doc(db, "Usuarios", uid, "State", y);
+    const snapY = await getDoc(refY);
+    if (snapY.exists()) return (snapY.data() || null);
+  } catch (e) {
+    console.warn("loadState: no se pudo leer State por vigencia:", e);
+  }
+
+  // 2) Fallback a 'main' (legacy)
+  try {
+    const refM = doc(db, "Usuarios", uid, "State", "main");
+    const snapM = await getDoc(refM);
+    if (!snapM.exists()) return null;
+
+    const data = snapM.data() || {};
+
+    // Si viene como mapa por vigencias: { years: { "2026": {..} } }
+    if (data.years && typeof data.years === "object" && data.years[y]) {
+      return data.years[y] || null;
+    }
+
+    // Si viene plano (prospects/goalsInd/slots/view), úsalo tal cual
+    if (Array.isArray(data.prospects) || data.goalsInd || data.slots || data.view) {
+      return data;
+    }
+
+    return null;
+  } catch (e) {
+    console.warn("loadState: no se pudo leer State/main:", e);
+    return null;
+  }
 }
 
 async function saveState(uid, year, payload) {
-  const ref = doc(db, "Usuarios", uid, "State", String(year));
-  await setDoc(ref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+  const y = String(year);
+
+  // 1) Guardar por vigencia (recomendado)
+  const refY = doc(db, "Usuarios", uid, "State", y);
+  await setDoc(refY, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+
+  // 2) Mantener compatibilidad: guardar también en main como mapa por vigencias
+  //    Esto evita que versiones antiguas (o el visor en consola) "pierdan" datos.
+  const refM = doc(db, "Usuarios", uid, "State", "main");
+  await setDoc(refM, {
+    years: { [y]: { ...payload } },
+    updatedAt: serverTimestamp()
+  }, { merge: true });
 }
 
 
