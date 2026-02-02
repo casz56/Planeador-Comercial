@@ -56,9 +56,12 @@ service cloud.firestore {
 
       allow delete: if canAdmin();
 
-      // Subcolección State por vigencia
+      // ✅ Subcolección State por vigencia
+      // - Lectura: cualquier usuario autenticado puede ver la producción (todas las vigencias / todos los usuarios)
+      // - Escritura: solo el dueño del uid o admin/boot
       match /State/{vigencia} {
-        allow read, write: if (signedIn() && request.auth.uid == uid) || canAdmin();
+        allow read: if signedIn();
+        allow write: if (signedIn() && request.auth.uid == uid) || canAdmin();
       }
     }
 
