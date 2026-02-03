@@ -2,42 +2,69 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() {
-      return request.auth != null;
+    function signedIn() { return request.auth != null; }
+
+    function isBootstrapAdmin() {
+      return signedIn() && request.auth.token.email == "admin@infihuila.gov.co";
     }
 
-    // ---------- USUARIOS ----------
-    // Lectura: cualquier usuario autenticado (para poder consolidar producción del equipo).
-    // Escritura: cada usuario sólo su propio documento, excepto admin.
-    match /Usuarios/{userId} {
+    function userDoc() {
+      return get(/databases/$(database)/documents/Usuarios/$(request.auth.uid));
+    }
+
+    // Considera activo si el campo isActive no existe (para evitar bloqueos)
+    function isActiveUser() {
+      return signedIn() && userDoc().exists()
+        && (userDoc().data.isActive == true || userDoc().data.isActive == null);
+    }
+
+    function isAdmin() {
+      return isActiveUser() && userDoc().data.role == "admin";
+    }
+
+    function canAdmin() {
+      return isAdmin() || isBootstrapAdmin();
+    }
+
+    // Configuración (solo admin escribe)
+    match /Config/{docId} {
       allow read: if signedIn();
+      allow write: if canAdmin();
+    }
 
-      allow create: if signedIn() && request.auth.uid == userId;
-      allow update: if signedIn() && (request.auth.uid == userId || (get(/databases/$(database)/documents/Usuarios/$(request.auth.uid)).data.admin == true));
-      allow delete: if signedIn() && (get(/databases/$(database)/documents/Usuarios/$(request.auth.uid)).data.admin == true);
+    // Metas institucionales por vigencia (solo admin escribe)
+    match /MetasInstitucionales/{vigencia} {
+      allow read: if signedIn();
+      allow write: if canAdmin();
+    }
 
-      // Estado por vigencia (por usuario)
-      match /State/{year} {
-        allow read: if signedIn(); // permite tablero global
-        allow write: if signedIn() && request.auth.uid == userId; // cada quien guarda lo suyo
+    // Usuarios
+    match /Usuarios/{uid} {
+      // El usuario puede leer su propio doc; admin/boot puede leer cualquiera (para panel admin)
+      allow read: if signedIn() && (request.auth.uid == uid || canAdmin());
+
+      // Autoprovisión: crear su propio doc
+      allow create: if signedIn() && request.auth.uid == uid;
+
+      // Actualización: el usuario puede actualizar su doc SIN cambiar role/isActive.
+      // Admin/boot puede actualizar cualquiera.
+      allow update: if (
+          signedIn() && request.auth.uid == uid
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.isActive == resource.data.isActive
+        ) || canAdmin();
+
+      allow delete: if canAdmin();
+
+      // Subcolección State por vigencia
+      match /State/{vigencia} {
+        allow read, write: if (signedIn() && request.auth.uid == uid) || canAdmin();
       }
     }
 
-    // ---------- CONFIG / METAS ----------
-    match /Config/{docId} {
-      allow read: if signedIn();
-      allow write: if signedIn() && (get(/databases/$(database)/documents/Usuarios/$(request.auth.uid)).data.admin == true);
-    }
-
-    match /MetasInstitucionales/{year} {
-      allow read: if signedIn();
-      allow write: if signedIn() && (get(/databases/$(database)/documents/Usuarios/$(request.auth.uid)).data.admin == true);
-    }
-
-    // ---------- OPTIONAL: STATE COMPARTIDO (si lo usas más adelante) ----------
-    match /StateShared/{docId} {
-      allow read: if signedIn();
-      allow write: if signedIn() && (get(/databases/$(database)/documents/Usuarios/$(request.auth.uid)).data.admin == true);
+    // Denegar todo lo demás
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
