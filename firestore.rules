@@ -4,7 +4,6 @@ service cloud.firestore {
 
     function signedIn() { return request.auth != null; }
 
-    // Admin bootstrap opcional por correo (ajusta si deseas)
     function isBootstrapAdmin() {
       return signedIn() && request.auth.token.email == "admin@infihuila.gov.co";
     }
@@ -13,42 +12,42 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/Usuarios/$(request.auth.uid));
     }
 
-    // Si el doc no existe aún, no bloquea lectura básica
+    // Considera activo si el campo isActive no existe (para evitar bloqueos)
     function isActiveUser() {
-      return signedIn() && (
-        !userDoc().exists() || userDoc().data.isActive == true || userDoc().data.isActive == null
-      );
+      return signedIn() && userDoc().exists()
+        && (userDoc().data.isActive == true || userDoc().data.isActive == null);
     }
 
     function isAdmin() {
-      return isActiveUser() && userDoc().exists() && userDoc().data.role == "admin";
+      return isActiveUser() && userDoc().data.role == "admin";
     }
 
     function canAdmin() {
       return isAdmin() || isBootstrapAdmin();
     }
 
-    // Configuración general: cualquiera autenticado lee; solo admin escribe
+    // Configuración (solo admin escribe)
     match /Config/{docId} {
       allow read: if signedIn();
       allow write: if canAdmin();
     }
 
-    // Metas institucionales por vigencia: cualquiera autenticado lee; solo admin escribe
+    // Metas institucionales por vigencia (solo admin escribe)
     match /MetasInstitucionales/{vigencia} {
       allow read: if signedIn();
       allow write: if canAdmin();
     }
 
-    // Documento de usuario (perfil/rol)
+    // Usuarios
     match /Usuarios/{uid} {
-      // lectura: dueño o admin (no es necesario para leer State global)
+      // El usuario puede leer su propio doc; admin/boot puede leer cualquiera (para panel admin)
       allow read: if signedIn() && (request.auth.uid == uid || canAdmin());
 
-      // crear su propio doc
+      // Autoprovisión: crear su propio doc
       allow create: if signedIn() && request.auth.uid == uid;
 
-      // update: dueño sin cambiar role/isActive; admin puede todo
+      // Actualización: el usuario puede actualizar su doc SIN cambiar role/isActive.
+      // Admin/boot puede actualizar cualquiera.
       allow update: if (
           signedIn() && request.auth.uid == uid
           && request.resource.data.role == resource.data.role
@@ -57,16 +56,16 @@ service cloud.firestore {
 
       allow delete: if canAdmin();
 
-      // ✅ PRODUCCIÓN (State)
-      // Lectura GLOBAL: cualquier usuario logueado puede ver producción de todos
-      // Escritura: solo dueño o admin
+      // Subcolección State por vigencia
       match /State/{vigencia} {
-        allow read: if signedIn(); 
+        // ✅ Lectura GLOBAL: cualquier usuario autenticado puede ver la producción de todos
+        allow read: if signedIn();
+        // ✅ Escritura: solo el dueño del documento (o admin)
         allow write: if (signedIn() && request.auth.uid == uid) || canAdmin();
       }
     }
 
-    // default deny
+    // Denegar todo lo demás
     match /{document=**} {
       allow read, write: if false;
     }
