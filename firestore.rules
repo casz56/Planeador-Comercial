@@ -3,72 +3,51 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && (request.auth.token.admin == true || request.auth.token.role == "admin"); }
 
-    function isBootstrapAdmin() {
-      return signedIn() && request.auth.token.email == "admin@infihuila.gov.co";
-    }
-
-    function userDoc() {
-      return get(/databases/$(database)/documents/Usuarios/$(request.auth.uid));
-    }
-
-    // Considera activo si el campo isActive no existe (para evitar bloqueos)
-    function isActiveUser() {
-      return signedIn() && userDoc().exists()
-        && (userDoc().data.isActive == true || userDoc().data.isActive == null);
-    }
-
-    function isAdmin() {
-      return isActiveUser() && userDoc().data.role == "admin";
-    }
-
-    function canAdmin() {
-      return isAdmin() || isBootstrapAdmin();
-    }
-
-    // Configuración (solo admin escribe)
+    // =========================
+    // CONFIG / METAS (lectura general autenticada)
+    // =========================
     match /Config/{docId} {
       allow read: if signedIn();
-      allow write: if canAdmin();
+      allow write: if isAdmin();
     }
 
-    // Metas institucionales por vigencia (solo admin escribe)
-    match /MetasInstitucionales/{vigencia} {
+    match /MetasInstitucionales/{docId} {
       allow read: if signedIn();
-      allow write: if canAdmin();
+      allow write: if isAdmin();
     }
 
-    // Usuarios
+    // =========================
+    // USUARIOS
+    // NOTA: para poder ver "producción global" todos los usuarios autenticados
+    // deben poder leer los perfiles (al menos para listar el equipo) y los State.
+    // Escritura sigue protegida (solo dueño o admin).
+    // =========================
     match /Usuarios/{uid} {
-      // El usuario puede leer su propio doc; admin/boot puede leer cualquiera (para panel admin)
-      allow read: if signedIn() && (request.auth.uid == uid || canAdmin());
-
-      // Autoprovisión: crear su propio doc
+      // Lectura del documento del usuario (para listar equipo / roles / nombres)
+      allow read: if signedIn();
+      // Crear/actualizar: dueño o admin
       allow create: if signedIn() && request.auth.uid == uid;
+      allow update, delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
 
-      // Actualización: el usuario puede actualizar su doc SIN cambiar role/isActive.
-      // Admin/boot puede actualizar cualquiera.
-      allow update: if (
-          signedIn() && request.auth.uid == uid
-          && request.resource.data.role == resource.data.role
-          && request.resource.data.isActive == resource.data.isActive
-        ) || canAdmin();
-
-      allow delete: if canAdmin();
-
-      // Subcolección State por vigencia
+      // Estados por vigencia (producción / metas cargadas por usuario)
       match /State/{vigencia} {
-        allow read, write: if (signedIn() && request.auth.uid == uid) || canAdmin();
+        // *** CLAVE PARA PRODUCCIÓN GLOBAL ***
+        // Cualquier usuario autenticado puede LEER los estados para sumar el tablero global.
+        allow read: if signedIn();
+
+        // Solo dueño o admin puede escribir
+        allow create, update, delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      }
+
+      // Bloqueo de subcolecciones no contempladas
+      match /{document=**} {
+        allow read, write: if false;
       }
     }
 
-
-    // ✅ Estado global del planeador (compartido por el equipo)
-    match /PlaneadorState/{vigencia} {
-      allow read, write: if isActiveUser();
-    }
-
-    // Denegar todo lo demás
+    // Denegar todo lo no contemplado
     match /{document=**} {
       allow read, write: if false;
     }
