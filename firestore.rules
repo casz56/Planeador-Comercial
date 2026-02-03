@@ -4,70 +4,27 @@ service cloud.firestore {
 
     function signedIn() { return request.auth != null; }
 
-    function isBootstrapAdmin() {
-      return signedIn() && request.auth.token.email == "admin@infihuila.gov.co";
-    }
-
-    function userDoc() {
-      return get(/databases/$(database)/documents/Usuarios/$(request.auth.uid));
-    }
-
-    // Considera activo si el campo isActive no existe (para evitar bloqueos)
-    function isActiveUser() {
-      return signedIn() && userDoc().exists()
-        && (userDoc().data.isActive == true || userDoc().data.isActive == null);
-    }
-
-    function isAdmin() {
-      return isActiveUser() && userDoc().data.role == "admin";
-    }
-
-    function canAdmin() {
-      return isAdmin() || isBootstrapAdmin();
-    }
-
-    // Configuración (solo admin escribe)
-    match /Config/{docId} {
-      allow read: if signedIn();
-      allow write: if canAdmin();
-    }
-
-    // Metas institucionales por vigencia (solo admin escribe)
-    match /MetasInstitucionales/{vigencia} {
-      allow read: if signedIn();
-      allow write: if canAdmin();
-    }
-
-    // Usuarios
     match /Usuarios/{uid} {
-      // El usuario puede leer su propio doc; admin/boot puede leer cualquiera (para panel admin)
-      allow read: if signedIn() && (request.auth.uid == uid || canAdmin());
 
-      // Autoprovisión: crear su propio doc
+      allow read: if signedIn() && request.auth.uid == uid;
       allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
 
-      // Actualización: el usuario puede actualizar su doc SIN cambiar role/isActive.
-      // Admin/boot puede actualizar cualquiera.
-      allow update: if (
-          signedIn() && request.auth.uid == uid
-          && request.resource.data.role == resource.data.role
-          && request.resource.data.isActive == resource.data.isActive
-        ) || canAdmin();
-
-      allow delete: if canAdmin();
-
-      // Subcolección State por vigencia
       match /State/{vigencia} {
-        // ✅ Lectura GLOBAL: cualquier usuario autenticado puede ver la producción de todos
         allow read: if signedIn();
-        // ✅ Escritura: solo el dueño del documento (o admin)
-        allow write: if (signedIn() && request.auth.uid == uid) || canAdmin();
+        allow write: if signedIn() && request.auth.uid == uid;
       }
     }
 
-    // Denegar todo lo demás
-    match /{document=**} {
-      allow read, write: if false;
+    match /Config/{docId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /MetasInstitucionales/{vigencia} {
+      allow read: if signedIn();
+      allow write: if false;
     }
   }
 }

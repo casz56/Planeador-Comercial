@@ -1263,18 +1263,11 @@ setStorageKeys(VIGENCIA);
     const state = {
       view: { type: "total", user: null }, // total | comercial
       prospects: safeGetJSON(STORAGE_KEY, []),
-      allProspects: null, // producción global (todos los usuarios por vigencia)
       goalsInd: safeGetJSON(STORAGE_GOALS_KEY, {}), // { user: { "YYYY-MM": value } }
       slots: safeGetJSON(STORAGE_SLOTS_KEY, {}), // { "YYYY-MM-DD": { "09:00":[{user,note,ts}] } }
       filters: { date:"", status:"", type:"", line:"", search:"" },
       editingProspectId: null
     };
-
-    // Devuelve producción global si está cargada; si no, usa la del usuario logueado (fallback)
-    function getGlobalProspects(){
-      return Array.isArray(state.allProspects) ? state.allProspects : state.prospects;
-    }
-
 
     /***********************
      * 3) DOM refs
@@ -1423,7 +1416,7 @@ setStorageKeys(VIGENCIA);
      * 5) Derivations
      ***********************/
     function viewRows(){
-      let rows = [...getGlobalProspects()];
+      let rows = [...state.prospects];
 
       if(state.view.type==="comercial" && state.view.user){
         rows = rows.filter(r => r.user === state.view.user);
@@ -1702,7 +1695,7 @@ function renderTabs(){
 }
 
 function updateBadges(){
-  const all = [...getGlobalProspects()];
+  const all = [...state.prospects];
   const bt = document.getElementById("badgeTotal");
   if(bt) bt.textContent = all.length;
 
@@ -2213,7 +2206,7 @@ function updateBadges(){
       updateBadges();
 
       // rows in context + rowsAllContext for metas/charts (context without filters)
-      let rowsAllContext = [...getGlobalProspects()];
+      let rowsAllContext = [...state.prospects];
       if(state.view.type==="comercial" && state.view.user){
         rowsAllContext = rowsAllContext.filter(r => r.user === state.view.user);
       }
@@ -2406,9 +2399,7 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
     doc,
     setDoc,
     getDoc,
-    serverTimestamp,
-    collectionGroup,
-    getDocs
+    serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2541,35 +2532,6 @@ async function saveState(uid, year, payload) {
   const ref = doc(db, "Usuarios", uid, "State", String(year));
   await setDoc(ref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
 }
-
-// ----------------------------
-// Producción global (todos los usuarios) por vigencia
-// Lee todos los documentos de la subcolección "State" y filtra por doc.id == year
-// (No usamos documentId() en collectionGroup porque exige ruta completa)
-// ----------------------------
-async function loadAllStatesForYear(year){
-  const y = String(year);
-  const cg = collectionGroup(db, "State");
-  const snap = await getDocs(cg);
-
-  const allProspects = [];
-  snap.forEach(d=>{
-    // Cada doc es: Usuarios/{uid}/State/{vigencia}
-    if (d.id !== y) return;
-
-    const data = d.data() || {};
-    const uid = d.ref?.parent?.parent?.id || null;
-    const prospects = Array.isArray(data.prospects) ? data.prospects : [];
-    prospects.forEach(p=>{
-      // No alteramos la estructura original, solo añadimos ownerUid si no existe
-      if (p && typeof p === "object" && !p.ownerUid) p.ownerUid = uid;
-      allProspects.push(p);
-    });
-  });
-
-  return allProspects;
-}
-
 
 
   // ----------------------------
@@ -2729,8 +2691,6 @@ if (p?.onVigenciaChange) {
         if (dataY.goalsInd && typeof dataY.goalsInd === "object") p.state.goalsInd = dataY.goalsInd;
         if (dataY.slots && typeof dataY.slots === "object") p.state.slots = dataY.slots;
         if (dataY.view && typeof dataY.view === "object") p.state.view = dataY.view;
-        // Carga producción global (todos los usuarios) para la vigencia seleccionada
-        try { p.state.allProspects = await loadAllStatesForYear(y); } catch(e){ console.warn('No se pudo cargar producción global:', e); p.state.allProspects = null; }
         // Actualiza caché local para la vigencia seleccionada
         try {
           if (p.STORAGE_KEY) safeSetJSON(p.STORAGE_KEY, p.state.prospects);
@@ -2751,19 +2711,6 @@ if (p?.onVigenciaChange) {
 
       // Desbloquea UI (aunque Firestore no tenga nada todavía)
       unlockApp();
-
-
-      // Carga producción global (todos los usuarios) para la vigencia actual
-      try {
-        const p = window.__PLANEADOR__;
-        if (p?.state) p.state.allProspects = await loadAllStatesForYear(year);
-      } catch (e) {
-        console.warn("No se pudo cargar producción global:", e);
-        try { const p = window.__PLANEADOR__; if (p?.state) p.state.allProspects = null; } catch {}
-      }
-
-      // Refresca UI (aunque no haya datos en Firestore)
-      try { const p = window.__PLANEADOR__; if (p?.render) p.render(); } catch(e){}
 
       // Si hay datos, aplícalos al planeador
       if (data) {
