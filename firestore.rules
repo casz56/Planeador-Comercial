@@ -14,8 +14,11 @@ service cloud.firestore {
 
     // Considera activo si el campo isActive no existe (para evitar bloqueos)
     function isActiveUser() {
-      return signedIn() && userDoc().exists()
-        && (userDoc().data.isActive == true || userDoc().data.isActive == null);
+      // Activo si el doc de usuario no existe (evita bloqueos en primer ingreso),
+      // o si isActive es true / null
+      return signedIn() && (!userDoc().exists()
+        || userDoc().data.isActive == true
+        || userDoc().data.isActive == null);
     }
 
     function isAdmin() {
@@ -58,7 +61,10 @@ service cloud.firestore {
 
       // Subcolección State por vigencia
       match /State/{vigencia} {
-        allow read, write: if (signedIn() && request.auth.uid == uid) || canAdmin();
+        // ✅ Lectura GLOBAL: cualquier usuario autenticado puede ver la producción de TODOS
+        allow read: if signedIn();
+        // ✅ Escritura: solo el dueño (o admin)
+        allow write: if (signedIn() && request.auth.uid == uid) || canAdmin();
       }
     }
 

@@ -1263,8 +1263,6 @@ setStorageKeys(VIGENCIA);
     const state = {
       view: { type: "total", user: null }, // total | comercial
       prospects: safeGetJSON(STORAGE_KEY, []),
-      
-      allProspects: [], // producción global (solo lectura)
       goalsInd: safeGetJSON(STORAGE_GOALS_KEY, {}), // { user: { "YYYY-MM": value } }
       slots: safeGetJSON(STORAGE_SLOTS_KEY, {}), // { "YYYY-MM-DD": { "09:00":[{user,note,ts}] } }
       filters: { date:"", status:"", type:"", line:"", search:"" },
@@ -1418,10 +1416,7 @@ setStorageKeys(VIGENCIA);
      * 5) Derivations
      ***********************/
     function viewRows(){
-      let base = (Array.isArray(state.allProspects) && state.allProspects.length)
-        ? state.allProspects
-        : state.prospects;
-      let rows = [...base];
+      let rows = [...state.prospects];
 
       if(state.view.type==="comercial" && state.view.user){
         rows = rows.filter(r => r.user === state.view.user);
@@ -2404,9 +2399,6 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
     doc,
     setDoc,
     getDoc,
-    getDocs,
-    collectionGroup,
-    query,
     serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
@@ -2539,53 +2531,6 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
 async function saveState(uid, year, payload) {
   const ref = doc(db, "Usuarios", uid, "State", String(year));
   await setDoc(ref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
-}
-
-async function loadAllStatesForYear(year){
-  const yStr = String(year);
-  const yNum = Number(year);
-  const all = [];
-  // Lee TODOS los documentos de la subcolección "State" de todos los usuarios
-  // y filtra por vigencia (docId == "YYYY" o campo year/meta.year)
-  const q = query(collectionGroup(db, "State"));
-  const snap = await getDocs(q);
-
-  snap.forEach(ds => {
-    const d = ds.data() || {};
-    const docId = ds.id;
-
-    const dYear =
-      (typeof d.year !== "undefined" ? Number(d.year) : undefined) ??
-      (d.meta && typeof d.meta.year !== "undefined" ? Number(d.meta.year) : undefined) ??
-      (typeof d.vigencia !== "undefined" ? Number(d.vigencia) : undefined);
-
-    const matchesYear =
-      (docId === yStr) ||
-      (Number.isFinite(dYear) && dYear === yNum);
-
-    // Soporte retrocompatibilidad si alguien quedó guardando en "main"
-    const matchesMain = (docId === "main") && (
-      (Number.isFinite(dYear) && dYear === yNum) || !Number.isFinite(dYear)
-    );
-
-    if(!matchesYear && !matchesMain) return;
-
-    let pros = [];
-    if (Array.isArray(d.prospects)) pros = d.prospects;
-    else if (d.main && Array.isArray(d.main.prospects)) pros = d.main.prospects;
-
-    // Normaliza "user" si viene vacío
-    pros.forEach(r => {
-      if (!r.user) {
-        const email = d.savedByEmail || d.email || "";
-        r.user = email ? String(email).split("@")[0] : "SinUsuario";
-      }
-    });
-
-    all.push(...pros);
-  });
-
-  return all;
 }
 
 
@@ -2752,26 +2697,10 @@ if (p?.onVigenciaChange) {
           if (p.STORAGE_GOALS_KEY) safeSetJSON(p.STORAGE_GOALS_KEY, p.state.goalsInd);
           if (p.STORAGE_SLOTS_KEY) safeSetJSON(p.STORAGE_SLOTS_KEY, p.state.slots);
         } catch (e) {}
-        
-// Producción global para la vigencia seleccionada
-try {
-  const allPros = await loadAllStatesForYear(y);
-  if (p?.state) p.state.allProspects = allPros;
-        console.log("Producción global cargada:", allPros.length);
-} catch (e) { console.warn("No se pudo cargar producción global:", e); }
-
-try { p.render?.(); } catch(e){}
+        try { p.render?.(); } catch(e){}
       } else {
         // Si no hay data en Firestore, deja lo local (ya lo cargó setVigencia)
-        
-// Producción global para la vigencia seleccionada
-try {
-  const allPros = await loadAllStatesForYear(y);
-  if (p?.state) p.state.allProspects = allPros;
-        console.log("Producción global cargada:", allPros.length);
-} catch (e) { console.warn("No se pudo cargar producción global:", e); }
-
-try { p.render?.(); } catch(e){}
+        try { p.render?.(); } catch(e){}
       }
     } catch(e){ console.warn("No se pudo cargar estado de vigencia:", e); }
   });
@@ -2782,17 +2711,6 @@ try { p.render?.(); } catch(e){}
 
       // Desbloquea UI (aunque Firestore no tenga nada todavía)
       unlockApp();
-
-// Carga producción global (todos los usuarios) para la vigencia seleccionada
-try {
-  const allPros = await loadAllStatesForYear(year);
-  const p = window.__PLANEADOR__;
-  if (p?.state) p.state.allProspects = allPros;
-        console.log("Producción global cargada:", allPros.length);
-} catch (e) {
-  console.warn("No se pudo cargar producción global:", e);
-}
-
 
       // Si hay datos, aplícalos al planeador
       if (data) {
