@@ -1269,6 +1269,25 @@ setStorageKeys(VIGENCIA);
       editingProspectId: null
     };
 
+
+    // Fuente de datos para visualización:
+    // - Si existe producción global (state.allProspects), úsala para Tablero/Tabs.
+    // - Si no, usa la producción local (state.prospects).
+    function getAllProspects(){
+      return (Array.isArray(state.allProspects) && state.allProspects.length)
+        ? state.allProspects
+        : state.prospects;
+    }
+
+    // ¿Este registro es editable por el usuario actual?
+    function canEditRow(r){
+      // Si el registro trae ownerUid, se valida contra currentUid
+      if(r && r.ownerUid && state.currentUid) return r.ownerUid === state.currentUid;
+      // Fallback: si no hay ownerUid, solo permite editar si coincide el nombre del usuario de la vista
+      // (conserva el comportamiento previo)
+      return true;
+    }
+
     /***********************
      * 3) DOM refs
      ***********************/
@@ -1416,7 +1435,7 @@ setStorageKeys(VIGENCIA);
      * 5) Derivations
      ***********************/
     function viewRows(){
-      let rows = [...(state.allProspects || state.prospects)];
+      let rows = [...getAllProspects()];
 
       if(state.view.type==="comercial" && state.view.user){
         rows = rows.filter(r => r.user === state.view.user);
@@ -1514,6 +1533,13 @@ setStorageKeys(VIGENCIA);
      ***********************/
     function rowHTML(r){
       const pill = `<span class="pill ${statusClass(r.status)}">${r.status}</span>`;
+      const editable = canEditRow(r);
+      const actions = editable ? `
+            <div class="t-actions">
+              <button class="iconbtn" type="button" data-action="edit">Editar</button>
+              <button class="iconbtn danger" type="button" data-action="delete">Eliminar</button>
+            </div>` : `<div class="t-actions"><span class="muted">Solo lectura</span></div>`;
+
       return `
         <tr data-id="${r._id}">
           <td class="nowrap">${r.date || ""}</td>
@@ -1526,10 +1552,7 @@ setStorageKeys(VIGENCIA);
           <td class="nowrap">${pill}</td>
           <td>${clampStr(r.notes, 90)}</td>
           <td class="nowrap">
-            <div class="t-actions">
-              <button class="iconbtn" type="button" data-action="edit">Editar</button>
-              <button class="iconbtn danger" type="button" data-action="delete">Eliminar</button>
-            </div>
+            ${actions}
           </td>
         </tr>
       `;
@@ -1695,7 +1718,7 @@ function renderTabs(){
 }
 
 function updateBadges(){
-  const all = [...(state.allProspects || state.prospects)];
+  const all = [...getAllProspects()];
   const bt = document.getElementById("badgeTotal");
   if(bt) bt.textContent = all.length;
 
@@ -1714,7 +1737,7 @@ function updateBadges(){
       el.yearLabel.textContent = String(t.getFullYear());
 
       const td = todayISO();
-      const todayRows = (state.allProspects || state.prospects).filter(p=>p.date===td);
+      const todayRows = getAllProspects().filter(p=>p.date===td);
       el.todayCount.textContent = todayRows.length.toLocaleString("es-CO");
 
       const disb = sum(todayRows.filter(p=>p.status==="Desembolsado").map(p=>Number(p.value||0)));
@@ -1829,8 +1852,7 @@ function updateBadges(){
         subline: el.pSubline.value,
         value: Number(el.pValue.value || 0),
         status: el.pStatus.value,
-        notes: el.pNotes.value.trim(),
-        ownerUid: window.__PLANEADOR__?.currentUid || null
+        notes: el.pNotes.value.trim()
       };
 
       if(!p.name){ alert("Por favor ingresa el nombre del prospecto."); el.pName.focus(); return false; }
@@ -1841,13 +1863,6 @@ function updateBadges(){
       if(idx >= 0) state.prospects[idx] = { ...state.prospects[idx], ...p };
       else state.prospects.push(p);
 
-      // Si existe vista global, reflejar cambios sin pisar producción de terceros
-      if(state.allProspects){
-        const j = state.allProspects.findIndex(x => x._id === p._id);
-        if(j >= 0) state.allProspects[j] = { ...state.allProspects[j], ...p };
-        else state.allProspects.push(p);
-      }
-
       safeSetJSON(STORAGE_KEY, state.prospects);
       return true;
     }
@@ -1857,15 +1872,7 @@ function updateBadges(){
       if(!p) return;
       const ok = confirm(`¿Eliminar el prospecto "${p.name}" (${p.user})?`);
       if(!ok) return;
-      state.prospects = state.prospects.filter(x=>x._id!==id);
-      if(state.allProspects) state.allProspects = state.allProspects.filter(x=>x._id!==id);
-      // Si existe vista global, reflejar cambios sin pisar producción de terceros
-      if(state.allProspects){
-        const j = state.allProspects.findIndex(x => x._id === p._id);
-        if(j >= 0) state.allProspects[j] = { ...state.allProspects[j], ...p };
-        else state.allProspects.push(p);
-      }
-
+      state.prospects = getAllProspects().filter(x=>x._id!==id);
       safeSetJSON(STORAGE_KEY, state.prospects);
       render();
     }
@@ -2025,14 +2032,7 @@ function updateBadges(){
           if(obj.goalsInd && typeof obj.goalsInd === "object") state.goalsInd = obj.goalsInd;
           if(obj.slots && typeof obj.slots === "object") state.slots = obj.slots;
 
-          // Si existe vista global, reflejar cambios sin pisar producción de terceros
-      if(state.allProspects){
-        const j = state.allProspects.findIndex(x => x._id === p._id);
-        if(j >= 0) state.allProspects[j] = { ...state.allProspects[j], ...p };
-        else state.allProspects.push(p);
-      }
-
-      safeSetJSON(STORAGE_KEY, state.prospects);
+          safeSetJSON(STORAGE_KEY, state.prospects);
           safeSetJSON(STORAGE_GOALS_KEY, state.goalsInd);
           safeSetJSON(STORAGE_SLOTS_KEY, state.slots);
 
@@ -2229,7 +2229,7 @@ function updateBadges(){
       updateBadges();
 
       // rows in context + rowsAllContext for metas/charts (context without filters)
-      let rowsAllContext = [...state.prospects];
+      let rowsAllContext = [...getAllProspects()];
       if(state.view.type==="comercial" && state.view.user){
         rowsAllContext = rowsAllContext.filter(r => r.user === state.view.user);
       }
@@ -2281,7 +2281,6 @@ function ensureDefaultGoalsForYear(year){
 function loadLocalStateForYear(year){
   setStorageKeys(year);
   state.prospects = safeGetJSON(STORAGE_KEY, []);
-  state.allProspects = null; // se llenará desde Firestore para vista global
   state.goalsInd = safeGetJSON(STORAGE_GOALS_KEY, {});
   state.slots = safeGetJSON(STORAGE_SLOTS_KEY, {});
   state.view = { type:"total", user:null };
@@ -2423,12 +2422,12 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
     doc,
     setDoc,
     getDoc,
-    getDocs,
+    serverTimestamp,
     collectionGroup,
+    getDocs,
     query,
     where,
-    documentId,
-    serverTimestamp
+    documentId
   } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2560,38 +2559,39 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
 async function saveState(uid, year, payload) {
   const ref = doc(db, "Usuarios", uid, "State", String(year));
   await setDoc(ref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+}
 
 // ----------------------------
-// Lectura global de producción (todos los usuarios) por vigencia
-// Usa collectionGroup("State") filtrando por documentId == YYYY
-// Retorna: { allProspects, statesByUid }
+// Carga global: Estados de TODOS los usuarios para una vigencia
+// Lee: Usuarios/*/State/{year} y consolida prospects (solo lectura)
 // ----------------------------
 async function loadAllStatesForYear(year){
   const y = String(year);
+  // collectionGroup('State') devuelve docs: Usuarios/{uid}/State/{vigencia}
   const q = query(collectionGroup(db, "State"), where(documentId(), "==", y));
-  const snap = await getDocs(q);
+  const snaps = await getDocs(q);
 
   const allProspects = [];
-  const statesByUid = {};
+  snaps.forEach(s=>{
+    const data = s.data() || {};
+    const path = s.ref.path || "";
+    const parts = path.split("/");
+    // path esperado: Usuarios/{uid}/State/{y}
+    const uid = (parts.length >= 2) ? parts[1] : null;
 
-  snap.forEach(ds=>{
-    const data = ds.data() || {};
-    const uid = ds.ref.parent?.parent?.id || null; // Usuarios/{uid}/State/{year}
-    if(uid) statesByUid[uid] = data;
-
-    const arr = Array.isArray(data.prospects) ? data.prospects : [];
-    arr.forEach(p=>{
-      const row = { ...(p||{}) };
-      if(!row.ownerUid) row.ownerUid = uid;
-      // Normaliza user para tabs
-      if(!row.user && data.meta?.savedByEmail) row.user = data.meta.savedByEmail;
-      allProspects.push(row);
-    });
+    if (Array.isArray(data.prospects)) {
+      data.prospects.forEach(p=>{
+        if(!p || typeof p !== "object") return;
+        // Marca de propietario para controlar edición
+        if(!p.ownerUid && uid) p.ownerUid = uid;
+        allProspects.push(p);
+      });
+    }
   });
 
-  return { allProspects, statesByUid };
+  return allProspects;
 }
-}
+
 
 
   // ----------------------------
@@ -2724,10 +2724,6 @@ async function ensureConfigDefaults(year){
 const p = window.__PLANEADOR__;
 const year0 = p?.getVigencia?.() || p?.vigencia || new Date().getFullYear();
 
-// UID actual para control de escritura
-p.currentUid = user.uid;
-p.currentEmail = user.email || null;
-
 try { await ensureConfigDefaults(year0); } catch(e){ console.warn("No se pudo asegurar Config:", e); }
 
 try {
@@ -2750,17 +2746,15 @@ if (p?.onVigenciaChange) {
     } catch(e){}
     try {
       const dataY = await loadState(user.uid, y);
+      // También recarga producción global para la vigencia seleccionada
+      try {
+        const allY = await loadAllStatesForYear(y);
+        if (p?.state) p.state.allProspects = Array.isArray(allY) ? allY : [];
+      } catch(e) {
+        console.warn("No se pudo cargar producción global:", e);
+      }
       if (dataY && p?.state) {
-        if (Array.isArray(dataY.prospects)) p.state.prospects = dataY.prospects.map(r=>({...(r||{}), ownerUid: user.uid}));
-        // Refresca producción global para la vigencia
-        try {
-          const all = await loadAllStatesForYear(y);
-          const own = Array.isArray(p.state.prospects) ? p.state.prospects : [];
-          const merged = [...(all.allProspects||[])];
-          const seen = new Set(merged.map(x=>x._id));
-          own.forEach(x=>{ if(x && x._id && !seen.has(x._id)) merged.push(x); });
-          p.state.allProspects = merged;
-        } catch(e){ console.warn("No se pudo cargar producción global:", e); p.state.allProspects = null; }
+        if (Array.isArray(dataY.prospects)) p.state.prospects = (dataY.prospects||[]).map(x=>{ if(x && typeof x==='object' && !x.ownerUid) x.ownerUid = user.uid; return x; });
         if (dataY.goalsInd && typeof dataY.goalsInd === "object") p.state.goalsInd = dataY.goalsInd;
         if (dataY.slots && typeof dataY.slots === "object") p.state.slots = dataY.slots;
         if (dataY.view && typeof dataY.view === "object") p.state.view = dataY.view;
@@ -2782,6 +2776,27 @@ if (p?.onVigenciaChange) {
       const year = window.__PLANEADOR__?.getVigencia?.() || window.__PLANEADOR__?.vigencia || new Date().getFullYear();
       const data = await loadState(user.uid, year);
 
+      // Identidad del usuario para control de edición
+      try {
+        const p = window.__PLANEADOR__;
+        if (p?.state) {
+          p.state.currentUid = user.uid;
+          p.state.currentEmail = user.email || null;
+        }
+      } catch(e){}
+
+      // Carga producción GLOBAL (todos los usuarios) para la vigencia
+      try {
+        const all = await loadAllStatesForYear(year);
+        const p = window.__PLANEADOR__;
+        if (p?.state) {
+          p.state.allProspects = Array.isArray(all) ? all : [];
+        }
+      } catch(e) {
+        console.warn("No se pudo cargar producción global:", e);
+      }
+
+
       // Desbloquea UI (aunque Firestore no tenga nada todavía)
       unlockApp();
 
@@ -2789,23 +2804,8 @@ if (p?.onVigenciaChange) {
       if (data) {
         const p = window.__PLANEADOR__;
         if (p?.state && p?.render) {
-          if (Array.isArray(data.prospects)) {
-            // Prospección propia (editable)
-            p.state.prospects = data.prospects.map(r=>({ ...(r||{}), ownerUid: user.uid }));
-          }
+          if (Array.isArray(data.prospects)) p.state.prospects = (data.prospects||[]).map(x=>{ if(x && typeof x==='object' && !x.ownerUid) x.ownerUid = user.uid; return x; });
           if (data.goalsInd && typeof data.goalsInd === "object") p.state.goalsInd = data.goalsInd;
-
-          // Producción global (solo lectura) para tabs/Tablero Total
-          try {
-            const all = await loadAllStatesForYear(year);
-            // Unifica: externos + propios (por si alguno no estaba en global por reglas/caché)
-            const own = Array.isArray(p.state.prospects) ? p.state.prospects : [];
-            const merged = [...(all.allProspects||[])];
-            const seen = new Set(merged.map(x=>x._id));
-            own.forEach(x=>{ if(x && x._id && !seen.has(x._id)) merged.push(x); });
-            p.state.allProspects = merged;
-          } catch(e){ console.warn("No se pudo cargar producción global:", e); p.state.allProspects = null; }
-
           if (data.slots && typeof data.slots === "object") p.state.slots = data.slots;
           if (data.view && typeof data.view === "object") p.state.view = data.view;
 
