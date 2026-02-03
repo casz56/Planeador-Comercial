@@ -225,7 +225,7 @@
 <div class="card">
   <div class="hd"><h3>Equipo Comercial (para tabs en index.html)</h3></div>
   <div class="bd">
-    <div class="msg muted">Escribe <b>un nombre por línea</b> o <b>Nombre | correo</b> (recomendado). Ej: agrega <b>Karen</b> o cambia <b>Carolina</b> por otro nombre. Se guarda en <code>Config/Equipo</code>.</div>
+    <div class="msg muted">Escribe <b>un nombre por línea</b>. Ej: agrega <b>Karen</b> o cambia <b>Carolina</b> por otro nombre. Se guarda en <code>Config/Equipo</code>.</div>
     <textarea id="teamTxt" style="width:100%;min-height:160px;padding:12px;border-radius:14px;border:1px solid var(--border);font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"></textarea>
     <div class="toolbar" style="margin-top:10px">
       <button class="btn primary" id="btnSaveTeam">Guardar equipo</button>
@@ -371,48 +371,16 @@ async function loadTeamConfigUI(){
   }
   const data = snap.data() || {};
   const team = Array.isArray(data.team) ? data.team : DEFAULT_TEAM;
-  teamTxt.value = team.map(x=>{
-  if(typeof x==="string") return String(x);
-  if(x && typeof x==="object"){
-    const n = String(x.name||x.nombre||"").trim();
-    const e = x.email ? String(x.email).trim() : "";
-    return e ? `${n} | ${e}` : n;
-  }
-  return "";
-}).filter(Boolean).join("\n");
+  teamTxt.value = team.map(x=>String(x)).join("\n");
 }
 
 async function saveTeamConfigUI(){
   if(!teamTxt) return;
-
-  // Soporta:
-  //  - "Nombre"
-  //  - "Nombre | correo@dominio"
-  //  - "Nombre ; correo@dominio"
-  //  - "Nombre, correo@dominio"
-  const lines = teamTxt.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-
-  if(lines.length===0){
+  const team = teamTxt.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if(team.length===0){
     teamMsg && (teamMsg.textContent = "No puedes guardar un equipo vacío.");
     return;
   }
-
-  // Mapa email->uid (de usuarios cargados)
-  const emailToUid = {};
-  (cachedUsers||[]).forEach(u=>{
-    const em = (u.email||"").toString().trim().toLowerCase();
-    if(em) emailToUid[em] = u.uid;
-  });
-
-  const team = lines.map(line=>{
-    const parts = line.split(/\s*[\|;,]\s*/).map(x=>x.trim()).filter(Boolean);
-    const name = parts[0] || "";
-    const email = (parts[1] && parts[1].includes("@")) ? parts[1].toLowerCase() : null;
-    const uid = email ? (emailToUid[email] || null) : null;
-    // Guardamos como objeto para permitir uid/email
-    return { name, email, uid };
-  }).filter(x=>x.name);
-
   await setDoc(doc(db, "Config", "Equipo"), { team, updatedAt: serverTimestamp() }, { merge:true });
   teamMsg && (teamMsg.textContent = "Equipo guardado.");
   setTimeout(()=>{ if(teamMsg) teamMsg.textContent=""; }, 2500);
