@@ -1416,7 +1416,7 @@ setStorageKeys(VIGENCIA);
      * 5) Derivations
      ***********************/
     function viewRows(){
-      let rows = [...state.prospects];
+      let rows = [...(state.allProspects || state.prospects)];
 
       if(state.view.type==="comercial" && state.view.user){
         rows = rows.filter(r => r.user === state.view.user);
@@ -1695,7 +1695,7 @@ function renderTabs(){
 }
 
 function updateBadges(){
-  const all = [...state.prospects];
+  const all = [...(state.allProspects || state.prospects)];
   const bt = document.getElementById("badgeTotal");
   if(bt) bt.textContent = all.length;
 
@@ -1714,7 +1714,7 @@ function updateBadges(){
       el.yearLabel.textContent = String(t.getFullYear());
 
       const td = todayISO();
-      const todayRows = state.prospects.filter(p=>p.date===td);
+      const todayRows = (state.allProspects || state.prospects).filter(p=>p.date===td);
       el.todayCount.textContent = todayRows.length.toLocaleString("es-CO");
 
       const disb = sum(todayRows.filter(p=>p.status==="Desembolsado").map(p=>Number(p.value||0)));
@@ -1829,7 +1829,8 @@ function updateBadges(){
         subline: el.pSubline.value,
         value: Number(el.pValue.value || 0),
         status: el.pStatus.value,
-        notes: el.pNotes.value.trim()
+        notes: el.pNotes.value.trim(),
+        ownerUid: window.__PLANEADOR__?.currentUid || null
       };
 
       if(!p.name){ alert("Por favor ingresa el nombre del prospecto."); el.pName.focus(); return false; }
@@ -1839,6 +1840,13 @@ function updateBadges(){
       const idx = state.prospects.findIndex(x => x._id === p._id);
       if(idx >= 0) state.prospects[idx] = { ...state.prospects[idx], ...p };
       else state.prospects.push(p);
+
+      // Si existe vista global, reflejar cambios sin pisar producción de terceros
+      if(state.allProspects){
+        const j = state.allProspects.findIndex(x => x._id === p._id);
+        if(j >= 0) state.allProspects[j] = { ...state.allProspects[j], ...p };
+        else state.allProspects.push(p);
+      }
 
       safeSetJSON(STORAGE_KEY, state.prospects);
       return true;
@@ -1850,6 +1858,14 @@ function updateBadges(){
       const ok = confirm(`¿Eliminar el prospecto "${p.name}" (${p.user})?`);
       if(!ok) return;
       state.prospects = state.prospects.filter(x=>x._id!==id);
+      if(state.allProspects) state.allProspects = state.allProspects.filter(x=>x._id!==id);
+      // Si existe vista global, reflejar cambios sin pisar producción de terceros
+      if(state.allProspects){
+        const j = state.allProspects.findIndex(x => x._id === p._id);
+        if(j >= 0) state.allProspects[j] = { ...state.allProspects[j], ...p };
+        else state.allProspects.push(p);
+      }
+
       safeSetJSON(STORAGE_KEY, state.prospects);
       render();
     }
@@ -2009,7 +2025,14 @@ function updateBadges(){
           if(obj.goalsInd && typeof obj.goalsInd === "object") state.goalsInd = obj.goalsInd;
           if(obj.slots && typeof obj.slots === "object") state.slots = obj.slots;
 
-          safeSetJSON(STORAGE_KEY, state.prospects);
+          // Si existe vista global, reflejar cambios sin pisar producción de terceros
+      if(state.allProspects){
+        const j = state.allProspects.findIndex(x => x._id === p._id);
+        if(j >= 0) state.allProspects[j] = { ...state.allProspects[j], ...p };
+        else state.allProspects.push(p);
+      }
+
+      safeSetJSON(STORAGE_KEY, state.prospects);
           safeSetJSON(STORAGE_GOALS_KEY, state.goalsInd);
           safeSetJSON(STORAGE_SLOTS_KEY, state.slots);
 
@@ -2258,6 +2281,7 @@ function ensureDefaultGoalsForYear(year){
 function loadLocalStateForYear(year){
   setStorageKeys(year);
   state.prospects = safeGetJSON(STORAGE_KEY, []);
+  state.allProspects = null; // se llenará desde Firestore para vista global
   state.goalsInd = safeGetJSON(STORAGE_GOALS_KEY, {});
   state.slots = safeGetJSON(STORAGE_SLOTS_KEY, {});
   state.view = { type:"total", user:null };
@@ -2399,6 +2423,11 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
     doc,
     setDoc,
     getDoc,
+    getDocs,
+    collectionGroup,
+    query,
+    where,
+    documentId,
     serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
@@ -2531,6 +2560,37 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
 async function saveState(uid, year, payload) {
   const ref = doc(db, "Usuarios", uid, "State", String(year));
   await setDoc(ref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+
+// ----------------------------
+// Lectura global de producción (todos los usuarios) por vigencia
+// Usa collectionGroup("State") filtrando por documentId == YYYY
+// Retorna: { allProspects, statesByUid }
+// ----------------------------
+async function loadAllStatesForYear(year){
+  const y = String(year);
+  const q = query(collectionGroup(db, "State"), where(documentId(), "==", y));
+  const snap = await getDocs(q);
+
+  const allProspects = [];
+  const statesByUid = {};
+
+  snap.forEach(ds=>{
+    const data = ds.data() || {};
+    const uid = ds.ref.parent?.parent?.id || null; // Usuarios/{uid}/State/{year}
+    if(uid) statesByUid[uid] = data;
+
+    const arr = Array.isArray(data.prospects) ? data.prospects : [];
+    arr.forEach(p=>{
+      const row = { ...(p||{}) };
+      if(!row.ownerUid) row.ownerUid = uid;
+      // Normaliza user para tabs
+      if(!row.user && data.meta?.savedByEmail) row.user = data.meta.savedByEmail;
+      allProspects.push(row);
+    });
+  });
+
+  return { allProspects, statesByUid };
+}
 }
 
 
@@ -2664,6 +2724,10 @@ async function ensureConfigDefaults(year){
 const p = window.__PLANEADOR__;
 const year0 = p?.getVigencia?.() || p?.vigencia || new Date().getFullYear();
 
+// UID actual para control de escritura
+p.currentUid = user.uid;
+p.currentEmail = user.email || null;
+
 try { await ensureConfigDefaults(year0); } catch(e){ console.warn("No se pudo asegurar Config:", e); }
 
 try {
@@ -2687,7 +2751,16 @@ if (p?.onVigenciaChange) {
     try {
       const dataY = await loadState(user.uid, y);
       if (dataY && p?.state) {
-        if (Array.isArray(dataY.prospects)) p.state.prospects = dataY.prospects;
+        if (Array.isArray(dataY.prospects)) p.state.prospects = dataY.prospects.map(r=>({...(r||{}), ownerUid: user.uid}));
+        // Refresca producción global para la vigencia
+        try {
+          const all = await loadAllStatesForYear(y);
+          const own = Array.isArray(p.state.prospects) ? p.state.prospects : [];
+          const merged = [...(all.allProspects||[])];
+          const seen = new Set(merged.map(x=>x._id));
+          own.forEach(x=>{ if(x && x._id && !seen.has(x._id)) merged.push(x); });
+          p.state.allProspects = merged;
+        } catch(e){ console.warn("No se pudo cargar producción global:", e); p.state.allProspects = null; }
         if (dataY.goalsInd && typeof dataY.goalsInd === "object") p.state.goalsInd = dataY.goalsInd;
         if (dataY.slots && typeof dataY.slots === "object") p.state.slots = dataY.slots;
         if (dataY.view && typeof dataY.view === "object") p.state.view = dataY.view;
@@ -2716,8 +2789,23 @@ if (p?.onVigenciaChange) {
       if (data) {
         const p = window.__PLANEADOR__;
         if (p?.state && p?.render) {
-          if (Array.isArray(data.prospects)) p.state.prospects = data.prospects;
+          if (Array.isArray(data.prospects)) {
+            // Prospección propia (editable)
+            p.state.prospects = data.prospects.map(r=>({ ...(r||{}), ownerUid: user.uid }));
+          }
           if (data.goalsInd && typeof data.goalsInd === "object") p.state.goalsInd = data.goalsInd;
+
+          // Producción global (solo lectura) para tabs/Tablero Total
+          try {
+            const all = await loadAllStatesForYear(year);
+            // Unifica: externos + propios (por si alguno no estaba en global por reglas/caché)
+            const own = Array.isArray(p.state.prospects) ? p.state.prospects : [];
+            const merged = [...(all.allProspects||[])];
+            const seen = new Set(merged.map(x=>x._id));
+            own.forEach(x=>{ if(x && x._id && !seen.has(x._id)) merged.push(x); });
+            p.state.allProspects = merged;
+          } catch(e){ console.warn("No se pudo cargar producción global:", e); p.state.allProspects = null; }
+
           if (data.slots && typeof data.slots === "object") p.state.slots = data.slots;
           if (data.view && typeof data.view === "object") p.state.view = data.view;
 
