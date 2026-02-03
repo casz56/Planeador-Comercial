@@ -2399,7 +2399,9 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
     doc,
     setDoc,
     getDoc,
-    serverTimestamp
+    serverTimestamp,
+    collectionGroup,
+    getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2527,6 +2529,52 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   const snap = await getDoc(ref);
   return snap.exists() ? (snap.data() || null) : null;
 }
+
+
+  // --- Global production (all team) ---
+  // We keep user's own prospects in state.prospects for saving.
+  // We load global prospects from all users into state.globalProspects for dashboards/tabs.
+  function allProspects() {
+    return Array.isArray(state.globalProspects) ? state.globalProspects : (base || []);
+  }
+
+  async function loadGlobalProspectsForYear(year) {
+    try {
+      const y = String(year);
+      const snap = await getDocs(collectionGroup(db, "State"));
+      const all = [];
+      snap.forEach((d) => {
+        const data = d.data() || {};
+        // Prefer matching by docId (year), but also support meta.year/year fields
+        const docYear =
+          (d.id ? String(d.id) : null) ||
+          (data?.meta?.year != null ? String(data.meta.year) : null) ||
+          (data?.year != null ? String(data.year) : null);
+
+        const yearMatch = (d.id === y) || (data?.meta?.year === Number(y)) || (String(data?.meta?.year) === y) || (String(data?.year) === y);
+        if (!yearMatch) return;
+
+        const prospects = Array.isArray(data.prospects) ? data.prospects : [];
+        for (const p of prospects) {
+          // ensure shape
+          if (p && typeof p === "object") all.push(p);
+        }
+      });
+
+      state.globalProspects = all;
+
+      // Refresh UI pieces that depend on production
+      try { updateBadges(); } catch (e) {}
+      try { render(); } catch (e) {}
+      return all;
+    } catch (err) {
+      console.warn("No se pudo cargar producción global:", err);
+      state.globalProspects = [];
+      try { updateBadges(); } catch (e) {}
+      try { render(); } catch (e) {}
+      return [];
+    }
+  }
 
 async function saveState(uid, year, payload) {
   const ref = doc(db, "Usuarios", uid, "State", String(year));
