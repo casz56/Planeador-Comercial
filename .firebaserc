@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "planeador-6ca40"
+    "default": "planeador-6ca40",
+    "planeador-6ca40": "planeador-6ca40"
   }
 }
