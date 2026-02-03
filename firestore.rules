@@ -2,54 +2,42 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() { return request.auth != null; }
-    function isAdmin() { return signedIn() && (request.auth.token.admin == true || request.auth.token.role == "admin"); }
+    function signedIn() {
+      return request.auth != null;
+    }
 
-    // =========================
-    // CONFIG / METAS (lectura general autenticada)
-    // =========================
+    // ---------- USUARIOS ----------
+    // Lectura: cualquier usuario autenticado (para poder consolidar producción del equipo).
+    // Escritura: cada usuario sólo su propio documento, excepto admin.
+    match /Usuarios/{userId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow update: if signedIn() && (request.auth.uid == userId || (get(/databases/$(database)/documents/Usuarios/$(request.auth.uid)).data.admin == true));
+      allow delete: if signedIn() && (get(/databases/$(database)/documents/Usuarios/$(request.auth.uid)).data.admin == true);
+
+      // Estado por vigencia (por usuario)
+      match /State/{year} {
+        allow read: if signedIn(); // permite tablero global
+        allow write: if signedIn() && request.auth.uid == userId; // cada quien guarda lo suyo
+      }
+    }
+
+    // ---------- CONFIG / METAS ----------
     match /Config/{docId} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if signedIn() && (get(/databases/$(database)/documents/Usuarios/$(request.auth.uid)).data.admin == true);
     }
 
-    match /MetasInstitucionales/{docId} {
+    match /MetasInstitucionales/{year} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if signedIn() && (get(/databases/$(database)/documents/Usuarios/$(request.auth.uid)).data.admin == true);
     }
 
-    // =========================
-    // USUARIOS
-    // NOTA: para poder ver "producción global" todos los usuarios autenticados
-    // deben poder leer los perfiles (al menos para listar el equipo) y los State.
-    // Escritura sigue protegida (solo dueño o admin).
-    // =========================
-    match /Usuarios/{uid} {
-      // Lectura del documento del usuario (para listar equipo / roles / nombres)
+    // ---------- OPTIONAL: STATE COMPARTIDO (si lo usas más adelante) ----------
+    match /StateShared/{docId} {
       allow read: if signedIn();
-      // Crear/actualizar: dueño o admin
-      allow create: if signedIn() && request.auth.uid == uid;
-      allow update, delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
-
-      // Estados por vigencia (producción / metas cargadas por usuario)
-      match /State/{vigencia} {
-        // *** CLAVE PARA PRODUCCIÓN GLOBAL ***
-        // Cualquier usuario autenticado puede LEER los estados para sumar el tablero global.
-        allow read: if signedIn();
-
-        // Solo dueño o admin puede escribir
-        allow create, update, delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
-      }
-
-      // Bloqueo de subcolecciones no contempladas
-      match /{document=**} {
-        allow read, write: if false;
-      }
-    }
-
-    // Denegar todo lo no contemplado
-    match /{document=**} {
-      allow read, write: if false;
+      allow write: if signedIn() && (get(/databases/$(database)/documents/Usuarios/$(request.auth.uid)).data.admin == true);
     }
   }
 }

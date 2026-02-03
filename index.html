@@ -2528,9 +2528,121 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   return snap.exists() ? (snap.data() || null) : null;
 }
 
+async function loadGlobalState(year) {
+  // Carga y consolida la producción del equipo leyendo el State/{year} de todos los usuarios.
+  // Requiere reglas que permitan lectura autenticada sobre Usuarios/*/State/*.
+  try {
+    const usersSnap = await getDocs(collection(db, "Usuarios"));
+    const users = [];
+    usersSnap.forEach(d => {
+      const data = d.data() || {};
+      if (data.activo === false) return;
+      users.push({
+        uid: d.id,
+        nombre: data.nombre || data.displayName || (data.email ? String(data.email).split("@")[0] : d.id),
+        rol: data.rol || "comercial",
+        admin: !!data.admin
+      });
+    });
+
+    // Actualiza TEAM para que el UI refleje el equipo real (si existe)
+    if (users.length) {
+      window.__PLANEADOR__.TEAM = users.map(u => u.nombre);
+      // refrescar tabs
+      if (typeof renderTabs === "function") renderTabs();
+    }
+
+    const agg = { prospects: [], goalsInd: {}, slots: {} };
+
+    const mergeSlots = (target, incoming) => {
+      if (!incoming || typeof incoming !== "object") return;
+      for (const [day, hours] of Object.entries(incoming)) {
+        if (!hours || typeof hours !== "object") continue;
+        if (!target[day]) target[day] = {};
+        for (const [h, arr] of Object.entries(hours)) {
+          if (!Array.isArray(arr)) continue;
+          if (!target[day][h]) target[day][h] = [];
+          target[day][h] = target[day][h].concat(arr);
+        }
+      }
+    };
+
+    for (const u of users) {
+      const ref = doc(db, "Usuarios", u.uid, "State", String(year));
+      const snap = await getDoc(ref);
+      if (!snap.exists()) continue;
+      const st = snap.data() || {};
+
+      if (Array.isArray(st.prospects)) agg.prospects = agg.prospects.concat(st.prospects);
+      if (st.goalsInd && typeof st.goalsInd === "object") {
+        for (const [k, v] of Object.entries(st.goalsInd)) agg.goalsInd[k] = v;
+      }
+      if (st.slots && typeof st.slots === "object") mergeSlots(agg.slots, st.slots);
+    }
+
+    // Dedupe prospects por id (por si acaso)
+    const seen = new Set();
+    agg.prospects = agg.prospects.filter(p => {
+      const id = p && p.id;
+      if (!id) return true;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+    // Reemplaza el estado en memoria (sin persistir global a Firestore)
+    const st = window.__PLANEADOR__ && window.__PLANEADOR__.state;
+    if (st) {
+      st.prospects = agg.prospects;
+      st.goalsInd = agg.goalsInd;
+      st.slots = agg.slots;
+      safeSetJSON("planeador_state_v2", st);
+      if (typeof render === "function") render();
+    }
+  } catch (e) {
+    console.warn("No se pudo cargar producción global:", e);
+  }
+}
+
+
+
 async function saveState(uid, year, payload) {
+  // Guardamos SOLO la parte del usuario autenticado, para evitar que un usuario
+  // sobre-escriba la producción del resto del equipo cuando trabajamos en modo "global".
+  const myName = (window.__PLANEADOR__ && window.__PLANEADOR__.authName) ? window.__PLANEADOR__.authName : null;
+
+  const safeClone = (obj) => JSON.parse(JSON.stringify(obj || {}));
+  let toSave = safeClone(payload);
+
+  if (myName && toSave) {
+    // Prospects: solo los del usuario
+    if (Array.isArray(toSave.prospects)) {
+      toSave.prospects = toSave.prospects.filter(p => (p && (p.user || p.usuario || p.comercial) === myName));
+    }
+    // Metas individuales: solo la clave del usuario
+    if (toSave.goalsInd && typeof toSave.goalsInd === "object") {
+      const mine = toSave.goalsInd[myName] || {};
+      toSave.goalsInd = { [myName]: mine };
+    }
+    // Notas (slots): solo las del usuario
+    if (toSave.slots && typeof toSave.slots === "object") {
+      const out = {};
+      for (const [day, hours] of Object.entries(toSave.slots)) {
+        if (!hours || typeof hours !== "object") continue;
+        const outHours = {};
+        for (const [h, arr] of Object.entries(hours)) {
+          if (!Array.isArray(arr)) continue;
+          const filtered = arr.filter(n => (n && (n.user || n.usuario) === myName));
+          if (filtered.length) outHours[h] = filtered;
+        }
+        if (Object.keys(outHours).length) out[day] = outHours;
+      }
+      toSave.slots = out;
+    }
+  }
+
   const ref = doc(db, "Usuarios", uid, "State", String(year));
-  await setDoc(ref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+  await setDoc(ref, toSave, { merge: true });
 }
 
 
@@ -2686,6 +2798,7 @@ if (p?.onVigenciaChange) {
     } catch(e){}
     try {
       const dataY = await loadState(user.uid, y);
+      await loadGlobalState(y);
       if (dataY && p?.state) {
         if (Array.isArray(dataY.prospects)) p.state.prospects = dataY.prospects;
         if (dataY.goalsInd && typeof dataY.goalsInd === "object") p.state.goalsInd = dataY.goalsInd;
@@ -2708,6 +2821,10 @@ if (p?.onVigenciaChange) {
 
       const year = window.__PLANEADOR__?.getVigencia?.() || window.__PLANEADOR__?.vigencia || new Date().getFullYear();
       const data = await loadState(user.uid, year);
+      // Nombre autenticado (para guardar únicamente lo propio)
+      window.__PLANEADOR__.authName = name;
+      // Carga producción global del equipo (sin sobrescribir en Firestore)
+      await loadGlobalState(year);
 
       // Desbloquea UI (aunque Firestore no tenga nada todavía)
       unlockApp();
