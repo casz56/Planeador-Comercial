@@ -32,6 +32,12 @@ service cloud.firestore {
       allow write: if canAdmin();
     }
 
+    // Estado global (tablero total) por vigencia (admin escribe)
+    match /GlobalState/{vigencia} {
+      allow read: if signedIn();
+      allow write: if canAdmin();
+    }
+
     // Metas institucionales por vigencia (solo admin escribe)
     match /MetasInstitucionales/{vigencia} {
       allow read: if signedIn();
