@@ -32,12 +32,6 @@ service cloud.firestore {
       allow write: if canAdmin();
     }
 
-    // Estado global (tablero total) por vigencia (admin escribe)
-    match /GlobalState/{vigencia} {
-      allow read: if signedIn();
-      allow write: if canAdmin();
-    }
-
     // Metas institucionales por vigencia (solo admin escribe)
     match /MetasInstitucionales/{vigencia} {
       allow read: if signedIn();
@@ -46,8 +40,10 @@ service cloud.firestore {
 
     // Usuarios
     match /Usuarios/{uid} {
-      // El usuario puede leer su propio doc; admin/boot puede leer cualquiera (para panel admin)
-      allow read: if signedIn() && (request.auth.uid == uid || canAdmin());
+      // ✅ Lectura global autenticada:
+      // Necesario para el "Tablero Total" / producción global (leer State de todos).
+      // Si deseas restringir esto, cambia a: (request.auth.uid == uid || canAdmin()).
+      allow read: if signedIn();
 
       // Autoprovisión: crear su propio doc
       allow create: if signedIn() && request.auth.uid == uid;
@@ -64,7 +60,9 @@ service cloud.firestore {
 
       // Subcolección State por vigencia
       match /State/{vigencia} {
-        allow read, write: if (signedIn() && request.auth.uid == uid) || canAdmin();
+        // Lectura global para sumarizados; escritura solo dueño o admin.
+        allow read: if signedIn();
+        allow write: if (signedIn() && request.auth.uid == uid) || canAdmin();
       }
     }
 

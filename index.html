@@ -2397,11 +2397,20 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   import {
     getFirestore,
     doc,
-    setDoc,
-    getDoc,
-    getDocs,
-    collection,
-    serverTimestamp
+	    setDoc,
+	    getDoc,
+	    addDoc,
+	    updateDoc,
+	    deleteDoc,
+	    collection,
+	    getDocs,
+	    query,
+	    where,
+	    orderBy,
+	    limit,
+	    collectionGroup,
+	    FieldPath,
+	    serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2417,6 +2426,39 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+
+  // -----------------------------
+  // Producción global (Tablero Total)
+  // Lee los docs /Usuarios/*/State/{vigencia} usando collectionGroup.
+  // Requiere reglas que permitan lectura autenticada.
+  // -----------------------------
+  async function loadGlobalState(vigencia) {
+    const yearId = String(vigencia);
+    const q = query(
+      collectionGroup(db, 'State'),
+      where(FieldPath.documentId(), '==', yearId)
+    );
+    const snap = await getDocs(q);
+    const out = { vigencia: yearId, usuarios: {}, totales: {} };
+    snap.forEach(d => {
+      const data = d.data() || {};
+      // Path esperado: Usuarios/{uid}/State/{year}
+      const parts = d.ref.path.split('/');
+      const uid = parts[1];
+      out.usuarios[uid] = data;
+      // Acumula campos numéricos comunes
+      Object.keys(data).forEach(k => {
+        const v = data[k];
+        if (typeof v === 'number' && isFinite(v)) {
+          out.totales[k] = (out.totales[k] || 0) + v;
+        }
+      });
+    });
+    return out;
+  }
+
+  // Exponer para el script principal (no-module) si lo requiere
+  window.loadGlobalState = loadGlobalState;
 // Defaults (idénticos a los del index principal)
   const DEFAULT_TEAM_SEED = (window.DEFAULT_TEAM && Array.isArray(window.DEFAULT_TEAM)) ? window.DEFAULT_TEAM : ["Alexander", "Luis Eduardo", "Carolina", "Natalia"];
   const DEFAULT_GOALS_2026_SEED = window.DEFAULT_GOALS ? window.DEFAULT_GOALS : {
@@ -2530,70 +2572,9 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   return snap.exists() ? (snap.data() || null) : null;
 }
 
-
-    async function loadGlobalState(year) {
-      // Carga producción global desde un documento agregado (evita listar /Usuarios para no romper permisos)
-      try {
-        const ref = doc(db, "GlobalState", String(year));
-        const snap = await getDoc(ref);
-        if (!snap.exists()) return;
-
-        const data = snap.data() || {};
-        if (Array.isArray(data.prospects)) {
-          // Unifica por id si existe, si no, concatena
-          const byId = new Map();
-          (state.prospects || []).forEach(p => { if (p && p.id) byId.set(p.id, p); });
-          data.prospects.forEach(p => { if (p && p.id) byId.set(p.id, p); });
-          state.prospects = Array.from(byId.values());
-        }
-        if (data.goalsInd && typeof data.goalsInd === "object") {
-          state.goalsInd = Object.assign({}, data.goalsInd, state.goalsInd || {});
-        }
-        if (data.slots && typeof data.slots === "object") {
-          state.slots = Object.assign({}, data.slots, state.slots || {});
-        }
-      } catch (e) {
-        // No mostrar error al usuario final
-        console.warn("Producción global no disponible aún.", e?.message || e);
-      }
-    }
 async function saveState(uid, year, payload) {
-  // Guardamos SOLO la parte del usuario autenticado, para evitar que un usuario
-  // sobre-escriba la producción del resto del equipo cuando trabajamos en modo "global".
-  const myName = (window.__PLANEADOR__ && window.__PLANEADOR__.authName) ? window.__PLANEADOR__.authName : null;
-
-  const safeClone = (obj) => JSON.parse(JSON.stringify(obj || {}));
-  let toSave = safeClone(payload);
-
-  if (myName && toSave) {
-    // Prospects: solo los del usuario
-    if (Array.isArray(toSave.prospects)) {
-      toSave.prospects = toSave.prospects.filter(p => (p && (p.user || p.usuario || p.comercial) === myName));
-    }
-    // Metas individuales: solo la clave del usuario
-    if (toSave.goalsInd && typeof toSave.goalsInd === "object") {
-      const mine = toSave.goalsInd[myName] || {};
-      toSave.goalsInd = { [myName]: mine };
-    }
-    // Notas (slots): solo las del usuario
-    if (toSave.slots && typeof toSave.slots === "object") {
-      const out = {};
-      for (const [day, hours] of Object.entries(toSave.slots)) {
-        if (!hours || typeof hours !== "object") continue;
-        const outHours = {};
-        for (const [h, arr] of Object.entries(hours)) {
-          if (!Array.isArray(arr)) continue;
-          const filtered = arr.filter(n => (n && (n.user || n.usuario) === myName));
-          if (filtered.length) outHours[h] = filtered;
-        }
-        if (Object.keys(outHours).length) out[day] = outHours;
-      }
-      toSave.slots = out;
-    }
-  }
-
   const ref = doc(db, "Usuarios", uid, "State", String(year));
-  await setDoc(ref, toSave, { merge: true });
+  await setDoc(ref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
 }
 
 
@@ -2749,7 +2730,6 @@ if (p?.onVigenciaChange) {
     } catch(e){}
     try {
       const dataY = await loadState(user.uid, y);
-      await loadGlobalState(y);
       if (dataY && p?.state) {
         if (Array.isArray(dataY.prospects)) p.state.prospects = dataY.prospects;
         if (dataY.goalsInd && typeof dataY.goalsInd === "object") p.state.goalsInd = dataY.goalsInd;
@@ -2772,10 +2752,6 @@ if (p?.onVigenciaChange) {
 
       const year = window.__PLANEADOR__?.getVigencia?.() || window.__PLANEADOR__?.vigencia || new Date().getFullYear();
       const data = await loadState(user.uid, year);
-      // Nombre autenticado (para guardar únicamente lo propio)
-      window.__PLANEADOR__.authName = name;
-      // Carga producción global del equipo (sin sobrescribir en Firestore)
-      await loadGlobalState(year);
 
       // Desbloquea UI (aunque Firestore no tenga nada todavía)
       unlockApp();
