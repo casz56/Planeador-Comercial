@@ -2576,7 +2576,40 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
     }
   }
 
-async function saveState(uid, year, payload) {
+
+async function loadGlobalProductionForYear(year) {
+  const y = Number(year);
+  try {
+    // collectionGroup sobre "State" filtrando por meta.year (evita el problema de documentId() en collectionGroup)
+    const q = query(collectionGroup(db, "State"), where("meta.year", "==", y));
+    const snap = await getDocs(q);
+
+    const prospects = [];
+    snap.forEach((docSnap) => {
+      const d = docSnap.data() || {};
+      const ownerUid = docSnap.ref?.parent?.parent?.id || null; // Usuarios/{uid}/State/{year}
+      const list = Array.isArray(d.prospects) ? d.prospects : [];
+      for (const p of list) {
+        prospects.push({ ...p, __ownerUid: ownerUid, __year: y });
+      }
+    });
+
+    window.__PLANEADOR_GLOBAL__ = { year: y, loaded: true, prospects };
+    if (window.__PLANEADOR__ && typeof window.__PLANEADOR__.render === "function") {
+      window.__PLANEADOR__.render();
+    }
+    return prospects;
+  } catch (e) {
+    console.warn("No se pudo cargar producción global:", e);
+    window.__PLANEADOR_GLOBAL__ = { year: y, loaded: true, prospects: [] };
+    if (window.__PLANEADOR__ && typeof window.__PLANEADOR__.render === "function") {
+      window.__PLANEADOR__.render();
+    }
+    return [];
+  }
+}
+
+  async function saveState(uid, year, payload) {
   const ref = doc(db, "Usuarios", uid, "State", String(year));
   await setDoc(ref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
 }
