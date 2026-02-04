@@ -2397,20 +2397,9 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   import {
     getFirestore,
     doc,
-	    setDoc,
-	    getDoc,
-	    addDoc,
-	    updateDoc,
-	    deleteDoc,
-	    collection,
-	    getDocs,
-	    query,
-	    where,
-	    orderBy,
-	    limit,
-	    collectionGroup,
-	    FieldPath,
-	    serverTimestamp
+    setDoc,
+    getDoc,
+    serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2426,39 +2415,6 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
-
-  // -----------------------------
-  // Producción global (Tablero Total)
-  // Lee los docs /Usuarios/*/State/{vigencia} usando collectionGroup.
-  // Requiere reglas que permitan lectura autenticada.
-  // -----------------------------
-  async function loadGlobalState(vigencia) {
-    const yearId = String(vigencia);
-    const q = query(
-      collectionGroup(db, 'State'),
-      where(FieldPath.documentId(), '==', yearId)
-    );
-    const snap = await getDocs(q);
-    const out = { vigencia: yearId, usuarios: {}, totales: {} };
-    snap.forEach(d => {
-      const data = d.data() || {};
-      // Path esperado: Usuarios/{uid}/State/{year}
-      const parts = d.ref.path.split('/');
-      const uid = parts[1];
-      out.usuarios[uid] = data;
-      // Acumula campos numéricos comunes
-      Object.keys(data).forEach(k => {
-        const v = data[k];
-        if (typeof v === 'number' && isFinite(v)) {
-          out.totales[k] = (out.totales[k] || 0) + v;
-        }
-      });
-    });
-    return out;
-  }
-
-  // Exponer para el script principal (no-module) si lo requiere
-  window.loadGlobalState = loadGlobalState;
 // Defaults (idénticos a los del index principal)
   const DEFAULT_TEAM_SEED = (window.DEFAULT_TEAM && Array.isArray(window.DEFAULT_TEAM)) ? window.DEFAULT_TEAM : ["Alexander", "Luis Eduardo", "Carolina", "Natalia"];
   const DEFAULT_GOALS_2026_SEED = window.DEFAULT_GOALS ? window.DEFAULT_GOALS : {
