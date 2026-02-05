@@ -2523,14 +2523,25 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   //   - Metas:   Usuarios/{uid}/Metas/2026
   // ----------------------------
   async function loadState(uid, year) {
-  const ref = doc(db, "Usuarios", uid, "State", String(year));
-  const snap = await getDoc(ref);
-  return snap.exists() ? (snap.data() || null) : null;
+  // Preferimos el estado GLOBAL (compartido por todos los comerciales)
+  const gref = doc(db, "GlobalState", String(year));
+  const gsnap = await getDoc(gref);
+  if (gsnap.exists()) return gsnap.data() || null;
+
+  // Respaldo: estado por usuario (por si aún no existe el global)
+  const uref = doc(db, "Usuarios", uid, "State", String(year));
+  const usnap = await getDoc(uref);
+  return usnap.exists() ? (usnap.data() || null) : null;
 }
 
 async function saveState(uid, year, payload) {
-  const ref = doc(db, "Usuarios", uid, "State", String(year));
-  await setDoc(ref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+  // 1) Estado GLOBAL compartido (para tablero total y producción por comercial)
+  const gref = doc(db, "GlobalState", String(year));
+  await setDoc(gref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+
+  // 2) Copia por usuario (respaldo / auditoría)
+  const uref = doc(db, "Usuarios", uid, "State", String(year));
+  await setDoc(uref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
 }
 
 

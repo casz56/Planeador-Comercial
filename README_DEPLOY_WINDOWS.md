@@ -1,61 +1,109 @@
-# Planeador Comercial – Despliegue sin errores (Windows)
+# Deploy en Windows (solución definitiva al error "Invalid project id: git config ...")
 
-## 1) Problema 1: PowerShell bloquea scripts `.ps1`
-Si te sale **PSSecurityException / UnauthorizedAccess / “no está firmado digitalmente”**, NO ejecutes `.ps1`.
+Este error **NO es del proyecto**. Es un problema del **Firebase CLI en tu PC** (config dañada o estás ejecutando otro `firebase` en tu PATH).
 
-✅ Usa estos archivos **.cmd** (no los bloquea Windows):
-- `01_reset_firebase.cmd`
-- `02_deploy_rules.cmd`
-- `03_deploy_hosting.cmd`
+La pista: te falla incluso con `firebase login` / `firebase projects:list` y el CLI dice que el “project id” es algo como:
 
-> Doble clic o ejecútalos desde la terminal.
+```
+git config --global user.name "Carlos Sandoval"
+```
+
+Un Project ID de Firebase **nunca** se ve así.
 
 ---
 
-## 2) Problema 2: “Invalid project id: git config --global user.name …”
-Eso pasa cuando alguna vez se ejecutó `firebase use --add` y por error se escribió **esa frase como alias/proyecto**.
-La forma más segura es **NO usar `firebase use`** para desplegar y siempre usar `-P`:
+## A) Arreglo rápido (recomendado): usar `npx` y evitar el `firebase` global
 
-✅ Deploy reglas:
-```
-firebase deploy -P planeador-6ca40 --only firestore:rules
-```
+En **VS Code**, abre Terminal y cambia a **Command Prompt (cmd)** (flecha ▼ al lado del +).
 
-✅ Deploy hosting:
-```
-firebase deploy -P planeador-6ca40 --only hosting
-```
+Luego, desde la carpeta del proyecto (donde está `firebase.json`), ejecuta:
 
-Si quieres limpiar el alias dañado:
-1. Ejecuta:
+1) `00_check_firebase.cmd`
+2) `01_login.cmd`
+3) `02_projects_list.cmd`
+4) `03_deploy_rules.cmd`
+5) `04_deploy_hosting.cmd`
+
+> Estos .cmd usan `npx firebase-tools@latest`, así evitas cualquier alias/instalación dañada.
+
+Si tu project id NO es `planeador-6ca40`, edita en `03_deploy_rules.cmd` y `04_deploy_hosting.cmd` la línea:
+
 ```
-firebase use --clear
-firebase use --add planeador-6ca40
+set PROJECT_ID=planeador-6ca40
 ```
-2. Si el error persiste, borra el caché local del CLI:
-   - Archivo: `%APPDATA%\configstore\firebase-tools.json`
-   - Busca y elimina cualquier referencia a `git config --global user.name "Carlos Sandoval"` (o borra el archivo completo; se recrea al hacer login).
 
 ---
 
-## 3) GitHub: “fatal: not a git repository”
-Eso NO es Firebase; es que la carpeta no es un repo de git.
+## B) Arreglo completo: resetear la configuración dañada del Firebase CLI
 
-Si necesitas subir a GitHub:
+Si quieres que el comando **global** `firebase` vuelva a funcionar bien:
+
+### 1) Borra configuración dañada (Windows)
+Abre **PowerShell** (idealmente como Administrador) y ejecuta:
+
+```powershell
+# Cierra cualquier modo multilinea si aparece el prompt " >> "
+# (presiona Ctrl+C antes de correr esto)
+
+$cfg1 = Join-Path $env:APPDATA "configstore\firebase-tools.json"
+$cfg2 = Join-Path $env:APPDATA "configstore\firebaserc"
+
+if (Test-Path $cfg1) { Remove-Item $cfg1 -Force }
+if (Test-Path $cfg2) { Remove-Item $cfg2 -Force }
+
+# (Opcional) muestra si existían
+Write-Host "Borrado configstore firebase-tools / firebaserc" 
 ```
+
+### 2) Reinstala Firebase Tools
+
+```powershell
+npm uninstall -g firebase-tools
+npm install -g firebase-tools@latest
+firebase --version
+```
+
+### 3) Verifica que estás usando el ejecutable correcto
+
+```powershell
+Get-Command firebase -All
+where firebase
+```
+
+Debe apuntar al global de npm, no a un script raro.
+
+### 4) Login y deploy
+
+```powershell
+cd C:\Users\casz5\OneDrive\Desktop\Planeador
+firebase login
+firebase projects:list
+firebase deploy --project planeador-6ca40 --only firestore:rules
+firebase deploy --project planeador-6ca40 --only hosting
+```
+
+---
+
+## C) Problemas típicos (y cómo evitarlos)
+
+### 1) Prompt `>>` en PowerShell
+Si ves `>>` es porque PowerShell está esperando cerrar comillas/llaves. Presiona **Ctrl+C** y vuelve a ejecutar el comando.
+
+### 2) "not a git repository"
+Eso es Git, no Firebase. Si quieres versionar:
+
+```powershell
 git init
-git remote add origin https://github.com/casz56/Planeador-Comercial.git
-git pull origin main --allow-unrelated-histories
 git add .
-git commit -m "update"
-git push -u origin main
+git commit -m "init"
 ```
+
+Si tu repo ya existe en GitHub, lo mejor es **clonarlo** y luego copiar archivos.
 
 ---
 
-## 4) Orden recomendado (definitivo)
-1) Ejecuta `01_reset_firebase.cmd`
-2) Ejecuta `02_deploy_rules.cmd`
-3) Ejecuta `03_deploy_hosting.cmd`
+## D) Qué incluye este ZIP
+- Proyecto limpio.
+- `.firebaserc`, `firebase.json`, `firestore.rules`.
+- Scripts `.cmd` que despliegan con `npx firebase-tools@latest` (sin bloqueos de ejecución de PowerShell).
 
-Listo.
