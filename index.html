@@ -2351,8 +2351,21 @@ window.__PLANEADOR__.getVigencia = ()=> VIGENCIA;
 window.__PLANEADOR__.setVigencia = (y)=> setVigencia(Number(y));
 window.__PLANEADOR__.setTeam = (arr)=>{
   if(!Array.isArray(arr)) return;
-  TEAM = arr.filter(Boolean).map(s=>String(s).trim()).filter(Boolean);
+
+  // Soporta team como lista de strings o de objetos (p.ej. {name:"Maira"})
+  const pickName = (v)=>{
+    if(typeof v === "string") return v.trim();
+    if(v && typeof v === "object"){
+      return String(
+        v.name ?? v.nombre ?? v.displayName ?? v.label ?? v.user ?? v.asesor ?? v.usuario ?? ""
+      ).trim();
+    }
+    return "";
+  };
+
+  TEAM = arr.map(pickName).filter(Boolean);
   if(TEAM.length===0) TEAM = deepClone(DEFAULT_TEAM);
+
   populateSelects();
   renderTabs();
   render();
