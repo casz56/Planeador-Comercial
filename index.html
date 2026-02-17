@@ -1263,8 +1263,6 @@ setStorageKeys(VIGENCIA);
     const state = {
       view: { type: "total", user: null }, // total | comercial
       prospects: safeGetJSON(STORAGE_KEY, []),
-      // Prospectos de otros usuarios (solo lectura; no se guardan en tu State)
-      remoteProspects: [],
       goalsInd: safeGetJSON(STORAGE_GOALS_KEY, {}), // { user: { "YYYY-MM": value } }
       slots: safeGetJSON(STORAGE_SLOTS_KEY, {}), // { "YYYY-MM-DD": { "09:00":[{user,note,ts}] } }
       filters: { date:"", status:"", type:"", line:"", search:"" },
@@ -1417,23 +1415,8 @@ setStorageKeys(VIGENCIA);
     /***********************
      * 5) Derivations
      ***********************/
-    function getAllProspects(){
-      const base = Array.isArray(state.prospects) ? state.prospects : [];
-      const remote = Array.isArray(state.remoteProspects) ? state.remoteProspects : [];
-      const all = [...base, ...remote];
-      // dedupe por _id (si existe)
-      const seen = new Set();
-      return all.filter(p=>{
-        const k = p && p._id ? String(p._id) : null;
-        if(!k) return true;
-        if(seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
-    }
-
     function viewRows(){
-      let rows = getAllProspects();
+      let rows = [...state.prospects];
 
       if(state.view.type==="comercial" && state.view.user){
         rows = rows.filter(r => r.user === state.view.user);
@@ -1712,7 +1695,7 @@ function renderTabs(){
 }
 
 function updateBadges(){
-  const all = getAllProspects();
+  const all = [...state.prospects];
   const bt = document.getElementById("badgeTotal");
   if(bt) bt.textContent = all.length;
 
@@ -1731,7 +1714,7 @@ function updateBadges(){
       el.yearLabel.textContent = String(t.getFullYear());
 
       const td = todayISO();
-      const todayRows = getAllProspects().filter(p=>p.date===td);
+      const todayRows = state.prospects.filter(p=>p.date===td);
       el.todayCount.textContent = todayRows.length.toLocaleString("es-CO");
 
       const disb = sum(todayRows.filter(p=>p.status==="Desembolsado").map(p=>Number(p.value||0)));
@@ -2223,7 +2206,7 @@ function updateBadges(){
       updateBadges();
 
       // rows in context + rowsAllContext for metas/charts (context without filters)
-      let rowsAllContext = getAllProspects();
+      let rowsAllContext = [...state.prospects];
       if(state.view.type==="comercial" && state.view.user){
         rowsAllContext = rowsAllContext.filter(r => r.user === state.view.user);
       }
@@ -2540,76 +2523,26 @@ window.__PLANEADOR__.onVigenciaChange = (fn)=>{
   //   - Metas:   Usuarios/{uid}/Metas/2026
   // ----------------------------
   async function loadState(uid, year) {
-  const y = String(year);
+  // Preferimos el estado GLOBAL (compartido por todos los comerciales)
+  const gref = doc(db, "GlobalState", String(year));
+  const gsnap = await getDoc(gref);
+  if (gsnap.exists()) return gsnap.data() || null;
 
-  // 1) Ruta recomendada por vigencia: Usuarios/{uid}/State/{year}
-  const refYear = doc(db, "Usuarios", uid, "State", y);
-  const snapYear = await getDoc(refYear);
-  if (snapYear.exists()) return (snapYear.data() || null);
-
-  // 2) Compatibilidad: Usuarios/{uid}/State/main
-  const refMain = doc(db, "Usuarios", uid, "State", "main");
-  const snapMain = await getDoc(refMain);
-  if (!snapMain.exists()) return null;
-
-  const data = snapMain.data() || {};
-  // Si el legacy guarda por años dentro de { years: { "2026": {...} } }
-  if (data.years && typeof data.years === "object" && data.years[y]) return data.years[y];
-
-  // Si el legacy guardaba directo en main (sin years)
-  return data;
+  // Respaldo: estado por usuario (por si aún no existe el global)
+  const uref = doc(db, "Usuarios", uid, "State", String(year));
+  const usnap = await getDoc(uref);
+  return usnap.exists() ? (usnap.data() || null) : null;
 }
 
 async function saveState(uid, year, payload) {
-  const y = String(year);
+  // 1) Estado GLOBAL compartido (para tablero total y producción por comercial)
+  const gref = doc(db, "GlobalState", String(year));
+  await setDoc(gref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
 
-  // A) Guardado por vigencia (recomendado)
-  const refYear = doc(db, "Usuarios", uid, "State", y);
-  await setDoc(refYear, { ...payload, year: Number(year), updatedAt: serverTimestamp() }, { merge: true });
-
-  // B) Compatibilidad (legacy): State/main.years.{year}
-  const refMain = doc(db, "Usuarios", uid, "State", "main");
-  await setDoc(refMain, { years: { [y]: { ...payload, year: Number(year), updatedAt: serverTimestamp() } }, updatedAt: serverTimestamp() }, { merge: true });
+  // 2) Copia por usuario (respaldo / auditoría)
+  const uref = doc(db, "Usuarios", uid, "State", String(year));
+  await setDoc(uref, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
 }
-
-  // ----------------------------
-  // Carga prospectos de otros usuarios (solo lectura) para que tabs/total funcionen
-  // Requiere que Config/Equipo tenga uid (recomendado) o email (para resolver uid).
-  // ----------------------------
-  async function resolveUidByEmail(email){
-    try{
-      // Solo si viene email y aún no hay uid
-      const { collection, getDocs, query, where, limit } = await import("https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js");
-      const q = query(collection(db, "Usuarios"), where("email", "==", String(email).trim().toLowerCase()), limit(1));
-      const snap = await getDocs(q);
-      if(!snap.empty) return snap.docs[0].id;
-    }catch(e){ console.warn("No se pudo resolver uid por email:", e); }
-    return null;
-  }
-
-  async function loadRemoteProspectsForYear(currentUid, year){
-    const p = window.__PLANEADOR__;
-    const meta = p?.__teamMeta;
-    if(!p?.state || !Array.isArray(meta) || meta.length===0) return;
-
-    const y = Number(year);
-    const out = [];
-    for(const member of meta){
-      try{
-        let uid = member?.uid || null;
-        if(!uid && member?.email) uid = await resolveUidByEmail(member.email);
-        if(!uid || uid === currentUid) continue;
-
-        const data = await loadState(uid, y);
-        if(data && Array.isArray(data.prospects)) out.push(...data.prospects);
-      }catch(e){ console.warn("No se pudo cargar estado de miembro:", e); }
-    }
-
-    // Solo lectura (no se guarda en tu State)
-    p.state.remoteProspects = out;
-    try{ p.render?.(); }catch(e){}
-  }
-
 
 
   // ----------------------------
@@ -2617,26 +2550,12 @@ async function saveState(uid, year, payload) {
 //   - Equipo: Config/Equipo  { team:[...] }
 //   - Metas institucionales por vigencia: MetasInstitucionales/{YYYY}
 // ----------------------------
-async function normalizeTeam(raw){
-  const arr = Array.isArray(raw) ? raw : [];
-  return arr.map(x=>{
-    if(typeof x === "string") return { name: x.trim() };
-    if(x && typeof x === "object"){
-      const name = String(x.name || x.nombre || "").trim();
-      const email = x.email ? String(x.email).trim() : null;
-      const uid = x.uid ? String(x.uid).trim() : null;
-      return { name, email, uid };
-    }
-    return null;
-  }).filter(o=>o && o.name);
-}
-
 async function loadTeamConfig(){
   const ref = doc(db, "Config", "Equipo");
   const snap = await getDoc(ref);
   if(!snap.exists()) return null;
   const data = snap.data() || {};
-  return Array.isArray(data.team) ? normalizeTeam(data.team) : null;
+  return Array.isArray(data.team) ? data.team : null;
 }
 
 async function loadGoalsConfig(year){
@@ -2759,11 +2678,8 @@ const year0 = p?.getVigencia?.() || p?.vigencia || new Date().getFullYear();
 try { await ensureConfigDefaults(year0); } catch(e){ console.warn("No se pudo asegurar Config:", e); }
 
 try {
-  const teamMeta = await loadTeamConfig();
-  if (teamMeta && p?.setTeam) {
-    p.__teamMeta = teamMeta;
-    p.setTeam(teamMeta.map(x=>x.name));
-  }
+  const team = await loadTeamConfig();
+  if (team && p?.setTeam) p.setTeam(team);
 } catch(e){ console.warn("No se pudo cargar Equipo:", e); }
 
 try {
@@ -2793,7 +2709,6 @@ if (p?.onVigenciaChange) {
           if (p.STORAGE_SLOTS_KEY) safeSetJSON(p.STORAGE_SLOTS_KEY, p.state.slots);
         } catch (e) {}
         try { p.render?.(); } catch(e){}
-        try { await loadRemoteProspectsForYear(user.uid, y); } catch(e){}
       } else {
         // Si no hay data en Firestore, deja lo local (ya lo cargó setVigencia)
         try { p.render?.(); } catch(e){}
@@ -2807,9 +2722,6 @@ if (p?.onVigenciaChange) {
 
       // Desbloquea UI (aunque Firestore no tenga nada todavía)
       unlockApp();
-
-      // Carga (solo lectura) prospectos de otros usuarios para tabs/total
-      try { await loadRemoteProspectsForYear(user.uid, year); } catch(e){}
 
       // Si hay datos, aplícalos al planeador
       if (data) {
@@ -2828,10 +2740,6 @@ if (p?.onVigenciaChange) {
           } catch (e) {}
 
           try { p.render(); } catch (e) { console.warn("Render falló:", e); }
-
-          // Carga (solo lectura) prospectos de otros usuarios para tabs/total
-          try { await loadRemoteProspectsForYear(user.uid, year); } catch(e){}
-
         }
       }
     } catch (err) {
