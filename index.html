@@ -301,6 +301,33 @@
       .top-actions{ justify-content:flex-start; }
     }
 
+    /* ===== Layout (reordenado) ===== */
+    .stack{
+      margin-top: 14px;
+      display:flex;
+      flex-direction:column;
+      gap: 14px;
+    }
+    .plannerWrap{
+      display:grid;
+      grid-template-columns: 1.35fr .95fr;
+      gap: 14px;
+      align-items:start;
+    }
+    .chartsWrap{
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+    }
+    .charts2{
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+    }
+    @media (max-width: 1100px){
+      .plannerWrap{ grid-template-columns: 1fr; }
+      }
+
     .card{
       background: var(--card);
       border: 1px solid var(--border);
@@ -734,7 +761,61 @@
     .muted{ color: var(--muted); font-size: 12px; }
     .nowrap{ white-space:nowrap; }
     .right{ text-align:right; }
-  </style>
+  
+
+    /* === CHARTS: mismo tamaño y apilados === */
+    .chartCard .bd{
+      padding-top: 10px;
+    }
+    .chartCard .chartBox{
+      position: relative;
+      width: 100%;
+      height: 320px; /* área del gráfico: igual para Barras, Tendencia y Torta */
+    }
+    .chartCard canvas{display:block;}
+    </style>
+
+<style>
+</style>
+
+
+<style>
+/* === CHART LAYOUT: MISMO TAMAÑO SIN DEFORMAR (Chart.js friendly) === */
+
+/* Altura consistente del bloque de gráfico (igual a barras) */
+.chart-equal .chart-container{
+  position: relative;
+  width: 100%;
+  height: 420px;
+}
+
+/* NO forzar con !important para no descalibrar el buffer interno del canvas */
+.chart-equal .chart-container canvas{
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Pie: reservar un área cuadrada dentro de la tarjeta para que no se vea "ovalado" */
+.chart-equal .chart-container.pie-square{
+  height: 420px;
+  display: grid;
+  place-items: center;
+}
+
+.chart-equal .chart-container.pie-square canvas{
+  width: min(420px, 100%);
+  height: min(420px, 100%);
+}
+
+/* Line/Bar: que ocupen el alto completo sin estirar por CSS (Chart.js recalcula) */
+.chart-equal .chart-container.line-fill canvas,
+.chart-equal .chart-container.bar-fill canvas{
+  width: 100%;
+  height: 100%;
+}
+</style>
+
 </head>
 
 <body>
@@ -863,8 +944,8 @@
     </section>
 
     <!-- MAIN GRID -->
-    <section class="grid">
-      <!-- PROSPECTS -->
+    <section class="stack">
+      <!-- PROSPECTOS (pantalla completa) -->
       <div class="card">
         <div class="hd">
           <h3>Prospectos y gestión</h3>
@@ -931,14 +1012,15 @@
         </div>
       </div>
 
-      <!-- PLANNER + CHARTS -->
-      <div class="card">
-        <div class="hd">
-          <h3>Planeador (hora/día) + Gráficos</h3>
+      <!-- PLANEADOR + GRÁFICOS (reordenado) -->
+      <div class="plannerWrap">
+        <div class="card">
+          <div class="hd">
+            <h3>Planeador (hora/día)</h3>
           <div class="muted" id="chartContext">Contexto: equipo total</div>
-        </div>
-        <div class="bd">
-          <div class="planner-top">
+          </div>
+          <div class="bd">
+            <div class="planner-top">
             <div class="field" style="min-width:220px; flex:1.2">
               <label>Fecha planeada</label>
               <input type="date" id="plannerDate" />
@@ -950,35 +1032,34 @@
           </div>
 
           <div class="slots" id="slots"></div>
+          </div>
+        </div>
 
-          <div class="card" style="box-shadow:none;border:0;background:transparent">
-            <div class="bd" style="padding:0; display:grid; gap:12px">
-              <div class="card">
+        <div class="chartsWrap">
+          <div class="card chartCard">
                 <div class="hd">
                   <h3>Barras · Cumplimiento vs metas 2026</h3>
                   <span class="muted">Colocación y Captación</span>
                 </div>
-                <div class="bd"><canvas id="barMetaChart" height="170"></canvas></div>
+                <div class="bd"><div class="chartBox"><canvas id="barMetaChart"></canvas></div></div>
               </div>
 
-              <div class="card">
+          <div class="charts2">
+            <div class="card chartCard">
                 <div class="hd">
                   <h3>Tendencia mensual</h3>
                   <span class="muted">Desembolsado por mes (acumulado anual)</span>
                 </div>
-                <div class="bd"><canvas id="trendChart" height="180"></canvas></div>
+                <div class="bd"><div class="chartBox"><canvas id="trendChart"></canvas></div></div>
               </div>
-
-              <div class="card">
+            <div class="card chartCard">
                 <div class="hd">
                   <h3>Torta · Distribución</h3>
                   <span class="muted">Estados + participación por tipo</span>
                 </div>
-                <div class="bd"><canvas id="pieChart" height="200"></canvas></div>
+                <div class="bd"><div class="chartBox"><canvas id="pieChart"></canvas></div></div>
               </div>
-            </div>
           </div>
-
         </div>
       </div>
     </section>
