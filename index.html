@@ -6,7 +6,7 @@
   <title>INFIHUILA | Planeador Comercial + Metas</title>
 
   <!-- Chart.js -->
-  <script type="text/javascript" src="https://me.kes.v2.scr.kaspersky-labs.com/7EA5E9BB-55E1-4C31-9C21-4943DDFED2E4/main.js?attr=PXqiWyEYv-dlaCb1iBg5ONnE5ruDHDb_7MM7e8VkTAQLunV58pImfCKq4peBEScABqNBBcgp6qmlyl18Ee5NtaW2pqcWZgbuN8lxY1u0VE1sR47p849R0brQUjSVhE_qRzZ6FuY6SD_eN-1M6pG0WFYZROPD6SMxhTFwY5-dfcGnHTaEJ43OcFYxJU8nM6tihplVPJgld8IOkBgZS4YMCP6h8y4e_MwYLgVGgMr3rUTMwF3ENj81hmQlH9EUvUrRUp_ASLi1XB-JFiwxiPqdcA" charset="UTF-8"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script type="text/javascript" src="https://me.kes.v2.scr.kaspersky-labs.com/7EA5E9BB-55E1-4C31-9C21-4943DDFED2E4/main.js?attr=vv-clIx_QbfMPBKZTIvJNzrBgOpuC1RB-xAb_hUtOHwUWUmZCL5XHQzkYfABIFZ69HT5xscBMlCsC5U3FGsbj1JQdQ7last5j1IjQsXqUjR8YxPukNN1QYHsJ1iHUQrXgLLYKMSpd6ATu-vTBlloRj6VAYccnxy6dPJuCb7hEp6ba4lOxoFnS_ukxeLCTHgVozJSgGkystWZDaO6FAA-TXPtr7YeGNjOdw_fmsBvOcTnHTBbY9G76MfIXJk5PkpWN1yX8K8cPWUuYeMCwOqvvw" charset="UTF-8"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <!-- Export PDF (jsPDF + html2canvas) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -891,7 +891,6 @@
       <div class="top-actions">
         <button class="btn primary" id="btnNewProspect" type="button">+ Nuevo prospecto</button>
         <button class="btn" id="btnNewSlot" type="button">+ Nota (hora)</button>
-        <button class="btn" id="btnExportPDF" type="button">Exportar PDF</button>
         <button class="btn" id="btnExportExcel" type="button">Exportar Excel</button>
       </div>
     </div>
@@ -1219,7 +1218,6 @@
 
         <h4>5) Exportación</h4>
         <ul>
-          <li><b>Exportar PDF</b>: genera un PDF del tablero completo (incluye metas, KPI, tablas y agenda visible).</li>
           <li><b>Exportar Excel</b>: genera un archivo con hojas para <b>Prospectos</b> y <b>Agenda</b>.</li>
         </ul>
 
@@ -1236,7 +1234,6 @@
       </div>
       <div class="mft">
         <button class="btn" type="button" data-close="modalManual">Cerrar</button>
-        <button class="btn primary" type="button" onclick="exportPDF()">Exportar PDF</button>
         <button class="btn primary" type="button" onclick="exportExcel()">Exportar Excel</button>
       </div>
     </div>
