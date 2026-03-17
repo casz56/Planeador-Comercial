@@ -6,7 +6,7 @@
   <title>INFIHUILA | Planeador Comercial + Metas</title>
 
   <!-- Chart.js -->
-  <script type="text/javascript" src="https://me.kes.v2.scr.kaspersky-labs.com/7EA5E9BB-55E1-4C31-9C21-4943DDFED2E4/main.js?attr=7uFzqF9OZyyxJXBi9ou-kpboCd-h5Cp7Ce31N3FHJ-cuj8vb3WZ7RfD5OTiznD427me7hI7MxyV5gCRCterhiMdHPwniP2S5HW_wfa5imST_S2bUclW-TxiUgeWM9TKPRXnp6QH4Yx7ZhuCG1EUNq1oU06q9KFm81OksdvoO-4_JsgwAGklxGGBvyu2oirQpvWMYalq7aQIYCtii_3OuAX6uaS1-8l3V5BPU3bnKYbJ6Ss6Hof6yvWgpYyk2odvxhdEmN-dSnv7TaZVSOb-Uog" charset="UTF-8"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script type="text/javascript" src="https://me.kes.v2.scr.kaspersky-labs.com/7EA5E9BB-55E1-4C31-9C21-4943DDFED2E4/main.js?attr=PXqiWyEYv-dlaCb1iBg5ONnE5ruDHDb_7MM7e8VkTAQLunV58pImfCKq4peBEScABqNBBcgp6qmlyl18Ee5NtaW2pqcWZgbuN8lxY1u0VE1sR47p849R0brQUjSVhE_qRzZ6FuY6SD_eN-1M6pG0WFYZROPD6SMxhTFwY5-dfcGnHTaEJ43OcFYxJU8nM6tihplVPJgld8IOkBgZS4YMCP6h8y4e_MwYLgVGgMr3rUTMwF3ENj81hmQlH9EUvUrRUp_ASLi1XB-JFiwxiPqdcA" charset="UTF-8"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <!-- Export PDF (jsPDF + html2canvas) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -2139,12 +2139,12 @@ function updateBadges(){
           .sort((a,b) => `${b.date||""} ${b.time||""}`.localeCompare(`${a.date||""} ${a.time||""}`))
           .map(p => ({
             Fecha: p.date || "",
-            Comercial: p.agent || "",
+            Comercial: p.user || "",
             Nombre: p.name || "",
             ID: p.id || "",
             Tipo: p.type || "",
             Sublínea: p.subline || "",
-            Valor: p.amount ? fmtCOP.format(Number(p.amount) || 0) : fmtCOP.format(0),
+            Valor: p.value ? fmtCOP.format(Number(p.value) || 0) : fmtCOP.format(0),
             Estado: p.status || "",
             Observaciones: p.notes || ""
           }));
@@ -2212,12 +2212,12 @@ function updateBadges(){
           .sort((a,b) => `${b.date||""} ${b.time||""}`.localeCompare(`${a.date||""} ${a.time||""}`))
           .map(p => ({
             Fecha: p.date || "",
-            Comercial: p.agent || "",
+            Comercial: p.user || "",
             Nombre: p.name || "",
             Identificación: p.id || "",
             Tipo: p.type || "",
             "Línea / Sublínea": p.subline || "",
-            Valor: Number(p.amount) || 0,
+            Valor: Number(p.value) || 0,
             Estado: p.status || "",
             Observaciones: p.notes || ""
           }));
